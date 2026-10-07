@@ -1,0 +1,580 @@
+{
+ "_pool": {
+  "pool_id": "ai-code",
+  "title": "AI 生成代码专项池",
+  "desc": "AI 生成代码 6 层＋个人工程 3 层（正确性/幻觉 API/防御缺失/安全幻觉/重复漂移/依赖失控＋可维护/复现/版本）。适用于 AI 大量产码的项目审查。",
+  "derived_from": {
+   "file": "data/checkpoints.json",
+   "template_version": "0.4.0",
+   "sha16": "583958fb419bb9ce"
+  },
+  "selection_rule": "见 audit/build_pools.py RULES（唯一事实源；重新生成即重放）",
+  "generated_at": "2026-10-07 21:22",
+  "count": 34,
+  "by_severity": {
+   "high": 14,
+   "medium": 15,
+   "critical": 2,
+   "low": 3
+  },
+  "by_verification": {
+   "S": 24,
+   "R": 7,
+   "A": 2,
+   "U": 1
+  }
+ },
+ "template_version": "0.4.0",
+ "layer_history": "45 → 42（轮6删） → 45（v1.4 安全回归）",
+ "checkpoints": [
+  {
+   "id": "AIG-CORR-001",
+   "layer": "AIG·正确性",
+   "subdomain": "边缘路径",
+   "title": "空集合输入未处理导致崩溃",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "missing-edge-case",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "AST：收集无下界保护的索引/切片/除运算，逐一列位置",
+   "params": [
+    "file_glob"
+   ]
+  },
+  {
+   "id": "AIG-CORR-002",
+   "layer": "AIG·正确性",
+   "subdomain": "静默修改",
+   "title": "静默修改未声明：写操作无返回值提示、无日志、文档未注明",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "silent-mutation",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "AST：比对函数体内写操作集合与返回值、注释及文档声明，列出全部未声明的写点",
+   "params": [
+    "file_glob",
+    "ast_query=mutating-call"
+   ]
+  },
+  {
+   "id": "AIG-CORR-003",
+   "layer": "AIG·正确性",
+   "subdomain": "异步语义",
+   "title": "async 误用：未 await 或并发写共享状态，导致竞态与顺序错误",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "async-misuse",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "以并发或乱序调度运行目标路径，比对结果与串行预期，记录未落地的 Promise 与竞态写点",
+   "params": [
+    "file_glob",
+    "runtime_entry"
+   ]
+  },
+  {
+   "id": "AIG-CORR-004",
+   "layer": "AIG·正确性",
+   "subdomain": "边界假设",
+   "title": "按臆造的边界条件处理输入（假定非空、有序、唯一或在上限内）",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "hallucinated-boundary",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "以违反代码未声明假设的最小输入运行，记录崩溃或错算位置",
+   "params": [
+    "file_glob",
+    "edge_input_spec"
+   ],
+   "cwe_map": [
+    "cwe-476"
+   ]
+  },
+  {
+   "id": "AIG-CORR-005",
+   "layer": "AIG·正确性",
+   "subdomain": "分页切片",
+   "title": "分页与切片语义错误（闭开区间、0/1 基、limit 与总数换算）",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "off-by-one",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "以首尾页、空页与超界参数运行，比对返回条数与边界元素",
+   "params": [
+    "file_glob",
+    "page_spec"
+   ]
+  },
+  {
+   "id": "AIG-HALL-001",
+   "layer": "AIG·幻觉 API",
+   "subdomain": "函数调用",
+   "title": "调用不存在的库函数或方法",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "hallucinated-api",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "静态解析导入清单，将每个被调符号与目标包实际导出（类型声明或符号表）逐一对账",
+   "params": [
+    "file_glob",
+    "import_manifest"
+   ]
+  },
+  {
+   "id": "AIG-HALL-002",
+   "layer": "AIG·幻觉 API",
+   "subdomain": "参数签名",
+   "title": "传入不存在的参数名或臆造的调用签名",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "hallucinated-parameter",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "将具名实参与目标函数的签名与类型定义逐参对账，列出无对应形参的调用点",
+   "params": [
+    "file_glob",
+    "signature_source"
+   ]
+  },
+  {
+   "id": "AIG-HALL-003",
+   "layer": "AIG·幻觉 API",
+   "subdomain": "废弃 API",
+   "title": "使用已废弃或已移除的 API",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "deprecated-api",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "开启弃用告警跑通主路径，收集告警并与官方替代项清单核对",
+   "params": [
+    "file_glob",
+    "entry_point"
+   ]
+  },
+  {
+   "id": "AIG-HALL-004",
+   "layer": "AIG·幻觉 API",
+   "subdomain": "配置项",
+   "title": "编造配置文件里不存在的键",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "hallucinated-config",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "将配置文件的键与目标库自带 schema 或默认配置模板逐键比对，未知键全部列出待核",
+   "params": [
+    "file_glob",
+    "config_schema"
+   ]
+  },
+  {
+   "id": "AIG-DEFE-001",
+   "layer": "AIG·防御缺失",
+   "subdomain": "输入校验",
+   "title": "外部输入未校验直接进入敏感用点",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "missing-input-validation",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "数据流：从请求、文件、环境与命令行入口追踪到查询、路径、命令、反序列化用点，标出无校验分支",
+   "params": [
+    "file_glob",
+    "taint_sources"
+   ],
+   "cwe_map": [
+    "cwe-20"
+   ]
+  },
+  {
+   "id": "AIG-DEFE-002",
+   "layer": "AIG·防御缺失",
+   "subdomain": "错误处理",
+   "title": "外部调用无错误处理，或空 catch 吞掉异常",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "missing-error-handling",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "AST 收集 IO、网络与解析调用点，标记未包裹异常处理、未检查错误返回、未捕获拒绝的位置及空 catch 块",
+   "params": [
+    "file_glob",
+    "external_call_set"
+   ]
+  },
+  {
+   "id": "AIG-DEFE-003",
+   "layer": "AIG·防御缺失",
+   "subdomain": "资源释放",
+   "title": "资源在异常路径未释放（句柄、连接、文件、锁）",
+   "verification": "A",
+   "severity_default": "high",
+   "defect_class": "resource-leak",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "消融正常路径：在获取与释放之间注入异常后运行，统计句柄、连接与锁是否归还",
+   "params": [
+    "file_glob",
+    "fault_injection_point"
+   ]
+  },
+  {
+   "id": "AIG-DEFE-004",
+   "layer": "AIG·防御缺失",
+   "subdomain": "失败假设",
+   "title": "假设网络与外部依赖永远成功（无超时、无重试、无降级）",
+   "verification": "A",
+   "severity_default": "high",
+   "defect_class": "success-assumption",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "消融依赖：将客户端替换为必失败桩后运行主路径，检查是否存在超时、重试与降级分支",
+   "params": [
+    "file_glob",
+    "stub_target"
+   ]
+  },
+  {
+   "id": "AIG-SEC-001",
+   "layer": "AIG·安全幻觉",
+   "subdomain": "自创密码学",
+   "title": "幻觉加密算法或自写认证：手写密码学原语、编码冒充加密、自解析令牌",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-hallucinated-crypto",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "检索加解密与签名校验是否只调用成熟库原语，标记手写轮换、异或、无密钥编码与自解析令牌的实现",
+   "params": [
+    "file_glob",
+    "crypto_call_patterns"
+   ]
+  },
+  {
+   "id": "AIG-SEC-002",
+   "layer": "AIG·安全幻觉",
+   "subdomain": "不安全默认",
+   "title": "出厂默认不安全：默认凭据、调试或详细错误开启、宽松跨域与权限",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-insecure-default",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "扫描默认配置值与调试、跨域、权限开关，标记未显式收紧的出厂默认项",
+   "params": [
+    "file_glob",
+    "config_defaults"
+   ]
+  },
+  {
+   "id": "AIG-SEC-003",
+   "layer": "AIG·安全幻觉",
+   "subdomain": "示例密钥",
+   "title": "文档或示例中的密钥被用于非测试路径",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "example-key-in-production",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "定位密钥类常量的全部使用点，标记出现在非测试、非示例路径的引用（只输出路径与变量名，不记录值）",
+   "params": [
+    "file_glob",
+    "usage_paths"
+   ]
+  },
+  {
+   "id": "AIG-SEC-004",
+   "layer": "AIG·安全幻觉",
+   "subdomain": "注释信任",
+   "title": "信任注释声称的安全（注释写已校验、已加密，但代码无对应实现）",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "unverified-security-claim",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "提取已校验、已加密、已过滤类注释并列出其相邻代码的防护调用，无对应实现者标为候选（真伪需人工或模型推断）",
+   "params": [
+    "file_glob",
+    "comment_patterns"
+   ]
+  },
+  {
+   "id": "AIG-DRIFT-001",
+   "layer": "AIG·重复漂移",
+   "subdomain": "重复实现",
+   "title": "同一功能存在多处实现且已出现行为差异",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "duplicated-logic",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "克隆检测找出同语义函数簇，用同一输入分别运行并比对输出差异",
+   "params": [
+    "file_glob",
+    "clone_threshold"
+   ]
+  },
+  {
+   "id": "AIG-DRIFT-002",
+   "layer": "AIG·重复漂移",
+   "subdomain": "复制演化",
+   "title": "复制粘贴后一处被修改、另一处未同步",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "copy-paste-drift",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "令牌级克隆比对，列出高相似但不一致的分支、常量与参数对",
+   "params": [
+    "file_glob",
+    "clone_threshold"
+   ]
+  },
+  {
+   "id": "AIG-DRIFT-003",
+   "layer": "AIG·重复漂移",
+   "subdomain": "影子实现",
+   "title": "新旧实现并存且同时可达，旧实现未删除或仍被间接调用",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "shadow-implementation",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "静态调用图列出同语义函数簇的全部可达调用点，标记并存路径",
+   "params": [
+    "file_glob",
+    "call_graph"
+   ]
+  },
+  {
+   "id": "AIG-DRIFT-004",
+   "layer": "AIG·重复漂移",
+   "subdomain": "常量重复",
+   "title": "同名常量、枚举或默认值在多处定义且取值漂移",
+   "verification": "S",
+   "severity_default": "low",
+   "defect_class": "constant-divergence",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "检索同名常量、枚举与默认值定义，标记取值不一致的位置",
+   "params": [
+    "file_glob",
+    "const_name_pattern"
+   ]
+  },
+  {
+   "id": "AIG-DEP-001",
+   "layer": "AIG·依赖失控",
+   "subdomain": "未声明依赖",
+   "title": "代码导入未在任何依赖清单中声明的包",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "undeclared-dependency",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "解析全部导入名并与清单与锁文件的依赖集合做差集",
+   "params": [
+    "file_glob",
+    "manifest_path"
+   ]
+  },
+  {
+   "id": "AIG-DEP-002",
+   "layer": "AIG·依赖失控",
+   "subdomain": "版本矛盾",
+   "title": "清单与锁文件、或多份清单之间的版本约束互相矛盾",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "version-conflict",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "逐包比对清单约束与锁文件实际解析版本，列出不满足约束的条目",
+   "params": [
+    "file_glob",
+    "lockfile_path"
+   ]
+  },
+  {
+   "id": "AIG-DEP-003",
+   "layer": "AIG·依赖失控",
+   "subdomain": "过重依赖",
+   "title": "为少量用途引入体积或传递依赖庞大的包",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "heavyweight-dependency",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "统计每个直接依赖的调用点数与其传递依赖数量，列少调用高重量的候选",
+   "params": [
+    "file_glob",
+    "usage_count_threshold"
+   ]
+  },
+  {
+   "id": "AIG-DEP-004",
+   "layer": "AIG·依赖失控",
+   "subdomain": "仿冒依赖",
+   "title": "依赖名与知名包近似（typosquatting 风险）",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "typosquatting-risk",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "将依赖名与流行包名清单做编辑距离比对，标记近似且来源非官方注册表的条目",
+   "params": [
+    "file_glob",
+    "popular_package_list"
+   ]
+  },
+  {
+   "id": "PER-MAINT-001",
+   "layer": "PER·可维护",
+   "subdomain": "文档",
+   "title": "无 README 或关键说明过时，照做无法复现",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "missing-or-stale-docs",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "先查 README 与关键说明是否存在，存在则在干净环境逐字执行其步骤并记录首个失败点",
+   "params": [
+    "file_glob",
+    "doc_entry"
+   ]
+  },
+  {
+   "id": "PER-MAINT-002",
+   "layer": "PER·可维护",
+   "subdomain": "脚本",
+   "title": "一次性脚本散落且无使用说明与参数校验",
+   "verification": "S",
+   "severity_default": "low",
+   "defect_class": "throwaway-script",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "检索位于临时目录或命名含 tmp、副本、日期后缀的脚本，检查是否含用途说明、参数校验与复用入口",
+   "params": [
+    "file_glob",
+    "naming_pattern"
+   ]
+  },
+  {
+   "id": "PER-MAINT-003",
+   "layer": "PER·可维护",
+   "subdomain": "约定",
+   "title": "无注释与风格约定（缺 linter、formatter 与文件头说明）",
+   "verification": "S",
+   "severity_default": "low",
+   "defect_class": "missing-conventions",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "检查仓库是否缺 linter、formatter 与编辑器配置及约定说明，并统计无文件头说明的源码占比",
+   "params": [
+    "file_glob",
+    "config_presence"
+   ]
+  },
+  {
+   "id": "PER-REPRO-001",
+   "layer": "PER·复现",
+   "subdomain": "环境声明",
+   "title": ".env.example 缺失或与代码引用的环境变量不一致",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "incomplete-env-example",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "提取代码中全部环境变量读取名，与 .env.example 列出的键做差集",
+   "params": [
+    "file_glob",
+    "env_read_patterns"
+   ]
+  },
+  {
+   "id": "PER-REPRO-002",
+   "layer": "PER·复现",
+   "subdomain": "一键启动",
+   "title": "无一键启动脚本，或从干净环境按步骤无法走通（含未声明环境假设）",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "broken-quickstart",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "在干净环境执行安装与启动脚本直至首次可用，记录失败点与未声明的环境假设",
+   "params": [
+    "file_glob",
+    "entry_script"
+   ]
+  },
+  {
+   "id": "PER-REPRO-003",
+   "layer": "PER·复现",
+   "subdomain": "派生数据",
+   "title": "派生数据与生成物无重建脚本，或随机种子未固定",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "unreproducible-artifacts",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "检索仓库内生成物是否有对应生成脚本，检查随机与时间来源是否固定种子或声明来源",
+   "params": [
+    "file_glob",
+    "generated_patterns"
+   ]
+  },
+  {
+   "id": "PER-VER-001",
+   "layer": "PER·版本",
+   "subdomain": "版本控制",
+   "title": "无 git 历史，或提交粒度失控、缺少发布标签",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "poor-version-control",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "检查 git 元数据是否存在，统计单提交文件数与标签数，超阈值或缺标签即标记",
+   "params": [
+    "file_glob",
+    "git_metadata"
+   ]
+  },
+  {
+   "id": "PER-VER-002",
+   "layer": "PER·版本",
+   "subdomain": "大文件",
+   "title": "大体积二进制或生成物直接入库",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "large-artifact-in-repo",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "统计被跟踪文件体积分布，标记超过阈值的二进制与构建产物路径",
+   "params": [
+    "file_glob",
+    "size_threshold_mb"
+   ]
+  },
+  {
+   "id": "PER-VER-003",
+   "layer": "PER·版本",
+   "subdomain": "密钥入库",
+   "title": "仓库内存在疑似密钥或凭据文件（位置级检查）",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "secret-in-repo",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "按文件名与内容模式扫描密钥类文件与被跟踪的密钥常量，只输出路径、行号与类别，绝不记录内容",
+   "params": [
+    "file_glob",
+    "secret_file_patterns"
+   ]
+  }
+ ]
+}

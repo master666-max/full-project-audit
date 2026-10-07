@@ -1,0 +1,431 @@
+{
+ "_pool": {
+  "pool_id": "agentic",
+  "title": "Agentic 专项池",
+  "desc": "多代理与工具编排面：代理身份信任链/工具供应链/级联失败与失控/工具调用/循环控制/韧性/记忆与索引投毒/MCP 四面。适用于 agent 系统与 MCP 集成审查。",
+  "derived_from": {
+   "file": "data/checkpoints.json",
+   "template_version": "0.4.0",
+   "sha16": "583958fb419bb9ce"
+  },
+  "selection_rule": "见 audit/build_pools.py RULES（唯一事实源；重新生成即重放）",
+  "generated_at": "2026-10-07 21:22",
+  "count": 25,
+  "by_severity": {
+   "high": 19,
+   "critical": 5,
+   "medium": 1
+  },
+  "by_verification": {
+   "S": 14,
+   "R": 8,
+   "U": 3
+  }
+ },
+ "template_version": "0.4.0",
+ "layer_history": "45 → 42（轮6删） → 45（v1.4 安全回归）",
+ "checkpoints": [
+  {
+   "id": "LLM-TOOL-001",
+   "layer": "LLM·工具调用",
+   "subdomain": "错误返回处理",
+   "title": "工具返回的 error 或异常结构未检查，按成功结果解析",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "tool-error-unhandled",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查每个工具调用点是否消费 error 与 status 字段并分支处理",
+   "params": [
+    "tool_name",
+    "symbol_pattern"
+   ]
+  },
+  {
+   "id": "LLM-TOOL-002",
+   "layer": "LLM·工具调用",
+   "subdomain": "schema 漂移",
+   "title": "工具参数 schema 与实现签名不一致，无一致性校验",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "tool-schema-drift",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：对每个注册工具按 schema 生成最小调用样例执行，与实现签名逐参数比对",
+   "params": [
+    "tool_name",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-TOOL-003",
+   "layer": "LLM·工具调用",
+   "subdomain": "权限边界与工具滥用",
+   "title": "危险工具（写文件、执行命令、外发请求）无白名单或人工确认门",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-tool-privilege-unbounded-cwe-862",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：枚举危险工具调用点，检查是否存在授权校验、参数白名单或人工确认门",
+   "params": [
+    "sink_type",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-TOOL-004",
+   "layer": "LLM·工具调用",
+   "subdomain": "并行调用冲突",
+   "title": "并行工具调用共享可变状态，无锁、无幂等键、无顺序约束",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "tool-parallel-race",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：并发触发同一工具写同一资源，检查是否出现冲突、重复副作用或相互覆盖",
+   "params": [
+    "tool_name",
+    "concurrency_config"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-001",
+   "layer": "LLM·循环控制",
+   "subdomain": "终止条件",
+   "title": "完成标志依赖模型自报，无外部对账",
+   "verification": "R",
+   "severity_default": "critical",
+   "defect_class": "unbounded-agent-loop",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：构造工具反复失败场景，观察 agent 是否在步数上限内正确终止而非空转",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-002",
+   "layer": "LLM·循环控制",
+   "subdomain": "最大步数",
+   "title": "主循环无最大步数、最大时长或最大 token 硬上限",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "loop-step-cap-absent",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：定位主循环，检查是否设置步数、时长或 token 上限常量与超限退出分支",
+   "params": [
+    "entrypoint",
+    "symbol_pattern"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-003",
+   "layer": "LLM·循环控制",
+   "subdomain": "死循环烧钱",
+   "title": "工具失败重入队列不计数，同一错误无限重试",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "loop-retry-thrash",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：令工具持续返回同一错误，观察是否在重试上限内退出并留下计费与日志",
+   "params": [
+    "retry_config",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-004",
+   "layer": "LLM·循环控制",
+   "subdomain": "异常退出路径",
+   "title": "循环内异常未清理中间态，已产生的副作用不回收",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "loop-partial-state-leak",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：循环半途注入异常，检查已写文件、已提交变更、已发请求是否回滚或标记",
+   "params": [
+    "entrypoint",
+    "sink_type"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-005",
+   "layer": "LLM·循环控制",
+   "subdomain": "终止实验证据",
+   "title": "未做循环终止实验，无预注册判据与实测终止记录",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "loop-termination-untested",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "推断：检查是否存在终止条件的测试用例与实验记录；缺失即记为未验证（对应必做三件事中的循环终止实验）",
+   "params": [
+    "entrypoint",
+    "file_glob"
+   ]
+  },
+  {
+   "id": "LLM-ROBUST-001",
+   "layer": "LLM·韧性",
+   "subdomain": "超时",
+   "title": "模型或工具调用无超时参数，单点挂起即阻塞全链",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "resilience-no-timeout",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查每个外部调用是否显式设置超时并向上传播取消",
+   "params": [
+    "timeout_config",
+    "symbol_pattern"
+   ]
+  },
+  {
+   "id": "LLM-ROBUST-002",
+   "layer": "LLM·韧性",
+   "subdomain": "API 失败降级",
+   "title": "外部 API 失败仅抛错，无备用模型或部分结果降级",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "resilience-no-fallback",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查异常分支是否包含降级路径；仅抛出与打日志即命中",
+   "params": [
+    "entrypoint",
+    "model_config"
+   ]
+  },
+  {
+   "id": "LLM-ROBUST-003",
+   "layer": "LLM·韧性",
+   "subdomain": "限流",
+   "title": "无 429 与限流退避队列，突发流量即雪崩",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "resilience-rate-limit-unhandled",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：模拟持续返回 429，检查是否退避、排队并最终恢复",
+   "params": [
+    "retry_config",
+    "api_endpoint"
+   ]
+  },
+  {
+   "id": "LLM-ROBUST-004",
+   "layer": "LLM·韧性",
+   "subdomain": "并发争用",
+   "title": "并发下共享会话、额度或文件句柄争用无隔离",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "resilience-concurrency-contention",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：并发压同一会话路径，检查共享状态是否出现覆盖或丢更新",
+   "params": [
+    "concurrency_config",
+    "session_store"
+   ]
+  },
+  {
+   "id": "LLM-ROBUST-005",
+   "layer": "LLM·韧性",
+   "subdomain": "部分失败回滚",
+   "title": "多步动作部分成功即返回，无补偿与状态标记",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "resilience-partial-failure-no-rollback",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：令多步流程中途失败，检查已完成步骤是否被补偿或标记为半完成",
+   "params": [
+    "entrypoint",
+    "sink_type"
+   ]
+  },
+  {
+   "id": "LLM-POISON-001",
+   "layer": "LLM·RAG",
+   "subdomain": "索引投毒",
+   "title": "索引/知识源写入面无来源验证与干净基线（可投毒面）",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "llm-rag-poisoning",
+   "source": "OWASP LLM Top10 2025 LLM04 缺口补全（v0.3）",
+   "status": "active",
+   "probe": "推断：索引写入路径的来源验证与基线快照机制存在性审查",
+   "params": [
+    "file_glob",
+    "index_path"
+   ]
+  },
+  {
+   "id": "LLM-POISON-002",
+   "layer": "LLM·记忆",
+   "subdomain": "记忆投毒",
+   "title": "外部内容可经对话写入长期记忆且无冲突处理",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "llm-memory-poisoning",
+   "source": "OWASP LLM Top10 2025 LLM04 缺口补全（v0.3）",
+   "status": "active",
+   "probe": "读码：记忆写入面来源过滤与冲突/回滚机制存在性",
+   "params": [
+    "file_glob",
+    "memory_store"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-001",
+   "layer": "LLM·安全",
+   "subdomain": "身份与代理间信任",
+   "title": "身份与权限滥用＋代理间信任链：子代理/工具继承超范围身份，委派与消息无校验",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "agentic-identity-trust",
+   "source": "OWASP Top 10 for Agentic Applications 2025-12（ASI03+ASI07）× agentic 缺口闭合",
+   "status": "active",
+   "probe": "读码：子代理/工具的身份传递与权限声明、跨代理消息与委派入口的校验存在性",
+   "params": [
+    "file_glob",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-002",
+   "layer": "LLM·工具调用",
+   "subdomain": "工具与插件供应链",
+   "title": "MCP/插件/第三方工具的来源、权限声明与更新链未锁定",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "agentic-tool-supply-chain",
+   "source": "OWASP Agentic Top10（ASI04）× AST10（AST01/02）",
+   "status": "active",
+   "probe": "清单：工具/MCP/插件来源与版本锁定；权限声明与实际能力一致性",
+   "params": [
+    "file_glob",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-003",
+   "layer": "LLM·韧性",
+   "subdomain": "级联失败与失控代理",
+   "title": "多步骤/多代理单点失败无熔断；无全局停止开关；越界持续运行风险",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "agentic-cascading-and-rogue",
+   "source": "OWASP Agentic Top10（ASI08+ASI10）",
+   "status": "active",
+   "probe": "读码：熔断/全局停止/步数与其他硬上限存在性；异常代理的隔离与回收路径",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-MCP-001",
+   "layer": "LLM·工具调用",
+   "subdomain": "工具描述投毒",
+   "title": "工具描述投毒：工具元数据/说明文本中藏指令或误导性权限声明",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "mcp-tool-poisoning",
+   "source": "OWASP MCP Top10 MCP03＋Simon Willison 工具投毒先例（v0.4.0）",
+   "status": "active",
+   "probe": "读取全部工具/MCP 描述文本，扫描隐藏指令模式（不可见字符/条件触发语句）；权限声明与实际能力比对",
+   "params": [
+    "file_glob",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-MCP-002",
+   "layer": "LLM·工具调用",
+   "subdomain": "上下文过度共享",
+   "title": "上下文注入与过度共享：跨服务器/跨工具上下文越权互见",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "mcp-context-over-sharing",
+   "source": "OWASP MCP Top10 MCP10（v0.4.0）",
+   "status": "active",
+   "probe": "读码：上下文/记忆在服务器与工具之间的传递范围与隔离（哪些数据进哪些服务器）",
+   "params": [
+    "file_glob",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-MCP-003",
+   "layer": "LLM·工具调用",
+   "subdomain": "MCP令牌管理",
+   "title": "MCP 令牌与密钥管理：存储位置/传递方式/权限范围",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "mcp-token-mismanagement",
+   "source": "OWASP MCP Top10 MCP01（v0.4.0）",
+   "status": "active",
+   "probe": "读码：令牌的存放（明文配置文件? Keychain?）与传递路径；权限范围是否最小化（只记位置与类型，D-004）",
+   "params": [
+    "file_glob",
+    "env_key"
+   ]
+  },
+  {
+   "id": "LLM-MCP-004",
+   "layer": "LLM·工具调用",
+   "subdomain": "影子MCP与审计",
+   "title": "影子 MCP 服务器：未纳管/未审计的服务器在运行；调用无审计遥测",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "mcp-shadow-server",
+   "source": "OWASP MCP Top10 MCP09+MCP08（v0.4.0）",
+   "status": "active",
+   "probe": "清单：实际配置的 MCP 服务器 ↔ 经批准清单比对；调用日志/遥测存在性",
+   "params": [
+    "file_glob",
+    "tool_name",
+    "log_config"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-004",
+   "layer": "LLM·安全",
+   "subdomain": "致命三要素组合",
+   "title": "致命三要素组合：私有数据访问×不可信内容摄入×外部通信通道三者齐备且无隔离",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "lethal-trifecta-composite",
+   "source": "Lethal Trifecta（Simon Willison/Palo Alto 2026）（v0.4.0）",
+   "status": "active",
+   "probe": "组合判定：分别枚举三要素证据（数据面/摄入面/出站面），三者齐备且无分隔即判高危",
+   "params": [
+    "file_glob",
+    "entrypoint",
+    "sink=network"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-005",
+   "layer": "LLM·韧性",
+   "subdomain": "多代理失败模式",
+   "title": "MAST 14 失败模式扫描（任务规范/角色/步骤重复/历史丢失/终止失知/会话重置/不澄清/脱轨/信息隐匿/忽视他者/行动推理错配/过早终止/弱验证/错误验证）",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "mast-multi-agent-failures",
+   "source": "MAST（arXiv 2503.13657，主源 definitions.txt 核对）（v0.4.0）",
+   "status": "active",
+   "probe": "清单化扫描：对多代理编排逐一核对 14 模式的可发生条件（U 类：以编排结构与防护缺失推断）",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  }
+ ]
+}

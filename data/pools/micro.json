@@ -1,0 +1,508 @@
+{
+ "_pool": {
+  "pool_id": "micro",
+  "title": "微池（进门级快速体检）",
+  "desc": "最小可用集：全部 critical ＋ AI 幻觉 API／agent 循环控制两族（最高频致死面）。适用于「先看一眼」的 30 分钟级体检或预算极紧时。",
+  "derived_from": {
+   "file": "data/checkpoints.json",
+   "template_version": "0.4.0",
+   "sha16": "583958fb419bb9ce"
+  },
+  "selection_rule": "见 audit/build_pools.py RULES（唯一事实源；重新生成即重放）",
+  "generated_at": "2026-10-07 21:22",
+  "count": 29,
+  "by_severity": {
+   "critical": 22,
+   "high": 4,
+   "medium": 3
+  },
+  "by_verification": {
+   "S": 22,
+   "R": 6,
+   "U": 1
+  }
+ },
+ "template_version": "0.4.0",
+ "layer_history": "45 → 42（轮6删） → 45（v1.4 安全回归）",
+ "checkpoints": [
+  {
+   "id": "GEN-CI-002",
+   "layer": "通用·CI/CD",
+   "subdomain": "密钥处理",
+   "title": "CI 密钥暴露：密钥明文写入配置、脚本或日志输出",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "ci-secret-exposure",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "扫描流水线配置与脚本中的明文凭据、echo 打印密钥的步骤、以及未走密钥管理/掩码机制的环境变量注入",
+   "params": [
+    "file_glob",
+    "ci_config_glob"
+   ]
+  },
+  {
+   "id": "GEN-LOG-001",
+   "layer": "通用·日志",
+   "subdomain": "敏感信息",
+   "title": "日志泄漏凭据：token/密码/密钥进入日志输出",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "sensitive-data-in-logs",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出日志语句参数含凭据字段（password/token/secret/authorization），或整对象序列化输出未做脱敏",
+   "params": [
+    "file_glob",
+    "sensitive_field_names"
+   ]
+  },
+  {
+   "id": "GEN-SEC-004",
+   "layer": "通用·安全",
+   "subdomain": "密钥生命周期",
+   "title": "密钥管理失控：密钥硬编码或入库、无轮换与分级",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "secret-lifecycle-mismanaged",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "扫描代码与数据文件中的密钥模式与敏感文件入库；轮换/分级缺失以密钥管理机制与记录检索作补充推断",
+   "params": [
+    "file_glob",
+    "secret_patterns"
+   ]
+  },
+  {
+   "id": "AIG-HALL-001",
+   "layer": "AIG·幻觉 API",
+   "subdomain": "函数调用",
+   "title": "调用不存在的库函数或方法",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "hallucinated-api",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "静态解析导入清单，将每个被调符号与目标包实际导出（类型声明或符号表）逐一对账",
+   "params": [
+    "file_glob",
+    "import_manifest"
+   ]
+  },
+  {
+   "id": "AIG-HALL-002",
+   "layer": "AIG·幻觉 API",
+   "subdomain": "参数签名",
+   "title": "传入不存在的参数名或臆造的调用签名",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "hallucinated-parameter",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "将具名实参与目标函数的签名与类型定义逐参对账，列出无对应形参的调用点",
+   "params": [
+    "file_glob",
+    "signature_source"
+   ]
+  },
+  {
+   "id": "AIG-HALL-003",
+   "layer": "AIG·幻觉 API",
+   "subdomain": "废弃 API",
+   "title": "使用已废弃或已移除的 API",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "deprecated-api",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "开启弃用告警跑通主路径，收集告警并与官方替代项清单核对",
+   "params": [
+    "file_glob",
+    "entry_point"
+   ]
+  },
+  {
+   "id": "AIG-HALL-004",
+   "layer": "AIG·幻觉 API",
+   "subdomain": "配置项",
+   "title": "编造配置文件里不存在的键",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "hallucinated-config",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "将配置文件的键与目标库自带 schema 或默认配置模板逐键比对，未知键全部列出待核",
+   "params": [
+    "file_glob",
+    "config_schema"
+   ]
+  },
+  {
+   "id": "AIG-SEC-001",
+   "layer": "AIG·安全幻觉",
+   "subdomain": "自创密码学",
+   "title": "幻觉加密算法或自写认证：手写密码学原语、编码冒充加密、自解析令牌",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-hallucinated-crypto",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "检索加解密与签名校验是否只调用成熟库原语，标记手写轮换、异或、无密钥编码与自解析令牌的实现",
+   "params": [
+    "file_glob",
+    "crypto_call_patterns"
+   ]
+  },
+  {
+   "id": "PER-VER-003",
+   "layer": "PER·版本",
+   "subdomain": "密钥入库",
+   "title": "仓库内存在疑似密钥或凭据文件（位置级检查）",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "secret-in-repo",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "按文件名与内容模式扫描密钥类文件与被跟踪的密钥常量，只输出路径、行号与类别，绝不记录内容",
+   "params": [
+    "file_glob",
+    "secret_file_patterns"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-001",
+   "layer": "LLM·循环控制",
+   "subdomain": "终止条件",
+   "title": "完成标志依赖模型自报，无外部对账",
+   "verification": "R",
+   "severity_default": "critical",
+   "defect_class": "unbounded-agent-loop",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：构造工具反复失败场景，观察 agent 是否在步数上限内正确终止而非空转",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-002",
+   "layer": "LLM·循环控制",
+   "subdomain": "最大步数",
+   "title": "主循环无最大步数、最大时长或最大 token 硬上限",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "loop-step-cap-absent",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：定位主循环，检查是否设置步数、时长或 token 上限常量与超限退出分支",
+   "params": [
+    "entrypoint",
+    "symbol_pattern"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-003",
+   "layer": "LLM·循环控制",
+   "subdomain": "死循环烧钱",
+   "title": "工具失败重入队列不计数，同一错误无限重试",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "loop-retry-thrash",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：令工具持续返回同一错误，观察是否在重试上限内退出并留下计费与日志",
+   "params": [
+    "retry_config",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-004",
+   "layer": "LLM·循环控制",
+   "subdomain": "异常退出路径",
+   "title": "循环内异常未清理中间态，已产生的副作用不回收",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "loop-partial-state-leak",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：循环半途注入异常，检查已写文件、已提交变更、已发请求是否回滚或标记",
+   "params": [
+    "entrypoint",
+    "sink_type"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-005",
+   "layer": "LLM·循环控制",
+   "subdomain": "终止实验证据",
+   "title": "未做循环终止实验，无预注册判据与实测终止记录",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "loop-termination-untested",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "推断：检查是否存在终止条件的测试用例与实验记录；缺失即记为未验证（对应必做三件事中的循环终止实验）",
+   "params": [
+    "entrypoint",
+    "file_glob"
+   ]
+  },
+  {
+   "id": "LLM-SEC-002",
+   "layer": "LLM·安全",
+   "subdomain": "提示注入·间接（经工具/检索/文件）",
+   "title": "工具返回值、检索结果与文件内容中的指令被直接执行，无来源信任分级",
+   "verification": "R",
+   "severity_default": "critical",
+   "defect_class": "security-prompt-injection-indirect-cwe-1427",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：在工具返回值与检索文档中植入指令，观察是否被当作指令执行",
+   "params": [
+    "tool_name",
+    "retrieval_config"
+   ]
+  },
+  {
+   "id": "LLM-SEC-005",
+   "layer": "LLM·安全",
+   "subdomain": "输出渲染 XSS 面",
+   "title": "模型输出未转义即渲染为 HTML 或富文本",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-output-render-xss-cwe-79",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：定位渲染点，检查 innerHTML、dangerouslySetInnerHTML、v-html 或未转义模板用法",
+   "params": [
+    "render_path",
+    "file_glob"
+   ]
+  },
+  {
+   "id": "SEC-001",
+   "layer": "安全散点",
+   "subdomain": "SQL 注入",
+   "title": "外部输入未参数化、以拼接方式进入 SQL 语句",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-sql-injection-cwe-89",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：从请求参数/事件字段追踪到数据库查询 API，检查是否经字符串拼接或格式化进入执行入口，而非绑定参数",
+   "params": [
+    "file_glob",
+    "source=request-param",
+    "sink=db-execute"
+   ]
+  },
+  {
+   "id": "SEC-002",
+   "layer": "安全散点",
+   "subdomain": "命令注入",
+   "title": "外部输入拼接进系统命令或 shell 执行",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-command-injection-cwe-78",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪子进程/shell 执行入口（shell 解释、os.system、exec 族）的参数是否含未转义的外部输入，检查是否已参数数组化与元字符过滤",
+   "params": [
+    "file_glob",
+    "source=request-param",
+    "sink=shell-exec"
+   ]
+  },
+  {
+   "id": "SEC-004",
+   "layer": "安全散点",
+   "subdomain": "不安全的反序列化",
+   "title": "对不可信数据反序列化且未限制对象构造范围",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-deserialization-cwe-502",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪 pickle 加载、非安全模式的 YAML 加载、原生对象反序列化等入口的输入来源，检查是否外部可控且无类型白名单或安全模式",
+   "params": [
+    "file_glob",
+    "source=external-payload",
+    "sink=deserialize"
+   ]
+  },
+  {
+   "id": "SEC-006",
+   "layer": "安全散点",
+   "subdomain": "服务端模板注入 SSTI",
+   "title": "用户输入被当作模板内容参与渲染",
+   "verification": "R",
+   "severity_default": "critical",
+   "defect_class": "security-ssti-cwe-1336",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "构造验证：向模板渲染入口传入含模板求值语法的载荷，观察是否被求值；静态侧追踪模板字符串是否拼接了外部输入而非仅作为变量传参",
+   "params": [
+    "file_glob",
+    "source=request-param",
+    "sink=template-render"
+   ]
+  },
+  {
+   "id": "SEC-013",
+   "layer": "安全散点",
+   "subdomain": "认证缺失或绕过",
+   "title": "敏感入口缺少认证或认证判断可被绕过",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-auth-bypass-cwe-287",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：枚举路由与入口点，核对认证中间件的覆盖是否完整，并检查判断分支中的短路、默认放行与类型混淆路径",
+   "params": [
+    "file_glob",
+    "surface=route",
+    "sink=auth-check"
+   ],
+   "cwe_map": [
+    "cwe-287",
+    "cwe-288"
+   ]
+  },
+  {
+   "id": "SEC-014",
+   "layer": "安全散点",
+   "subdomain": "授权缺失（越权）",
+   "title": "资源操作未校验归属或权限，可横向或纵向越权",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-missing-authorization-cwe-862",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪以请求提供的对象标识进行读写的路径，核对查询与更新是否以当前主体做归属或权限过滤",
+   "params": [
+    "file_glob",
+    "source=request-object-id",
+    "sink=db-write"
+   ],
+   "cwe_map": [
+    "cwe-639",
+    "cwe-863"
+   ]
+  },
+  {
+   "id": "SEC-015",
+   "layer": "安全散点",
+   "subdomain": "会话管理缺陷",
+   "title": "会话标识生成、续期或失效处理不当",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-session-management-cwe-384",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪登录前后会话标识的生成与轮换、登出与服务端失效路径，核对会话 Cookie 属性与固定风险处置",
+   "params": [
+    "file_glob",
+    "sink=session-store"
+   ]
+  },
+  {
+   "id": "SEC-019",
+   "layer": "安全散点",
+   "subdomain": "缓冲区边界",
+   "title": "内存拷贝或索引写入缺少长度边界校验",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-out-of-bounds-cwe-787",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：核对定长缓冲区的读写调用与索引来源，检查长度参数是否外部可控且未经上界校验，是否用显式长度替代有界安全接口",
+   "params": [
+    "file_glob",
+    "sink=memory-write"
+   ]
+  },
+  {
+   "id": "SEC-022",
+   "layer": "安全散点",
+   "subdomain": "供应链投毒/仿名依赖",
+   "title": "依赖名称与来源可信度未校验",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-supply-chain-cwe-1357",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：核对依赖名与官方名称的近似度、解析源是否为官方仓库、是否校验签名或完整性摘要，标记非官方源与缺失完整性校验项",
+   "params": [
+    "file_glob",
+    "sink=dependency-manifest"
+   ]
+  },
+  {
+   "id": "SEC-028",
+   "layer": "安全散点",
+   "subdomain": "代码注入",
+   "title": "eval/exec/动态导入的显式注入面",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-code-injection-cwe-94",
+   "source": "重建：CWE Top25 2025 缺口补全（与反序列化 SEC-004 分列）",
+   "status": "active",
+   "probe": "sinks：eval/exec/Function()/动态 import 的输入来源追踪，外部可控即缺陷",
+   "params": [
+    "file_glob",
+    "sink=eval-exec"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-003",
+   "layer": "LLM·韧性",
+   "subdomain": "级联失败与失控代理",
+   "title": "多步骤/多代理单点失败无熔断；无全局停止开关；越界持续运行风险",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "agentic-cascading-and-rogue",
+   "source": "OWASP Agentic Top10（ASI08+ASI10）",
+   "status": "active",
+   "probe": "读码：熔断/全局停止/步数与其他硬上限存在性；异常代理的隔离与回收路径",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-MCP-001",
+   "layer": "LLM·工具调用",
+   "subdomain": "工具描述投毒",
+   "title": "工具描述投毒：工具元数据/说明文本中藏指令或误导性权限声明",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "mcp-tool-poisoning",
+   "source": "OWASP MCP Top10 MCP03＋Simon Willison 工具投毒先例（v0.4.0）",
+   "status": "active",
+   "probe": "读取全部工具/MCP 描述文本，扫描隐藏指令模式（不可见字符/条件触发语句）；权限声明与实际能力比对",
+   "params": [
+    "file_glob",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-004",
+   "layer": "LLM·安全",
+   "subdomain": "致命三要素组合",
+   "title": "致命三要素组合：私有数据访问×不可信内容摄入×外部通信通道三者齐备且无隔离",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "lethal-trifecta-composite",
+   "source": "Lethal Trifecta（Simon Willison/Palo Alto 2026）（v0.4.0）",
+   "status": "active",
+   "probe": "组合判定：分别枚举三要素证据（数据面/摄入面/出站面），三者齐备且无分隔即判高危",
+   "params": [
+    "file_glob",
+    "entrypoint",
+    "sink=network"
+   ]
+  }
+ ]
+}

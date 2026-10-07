@@ -1,0 +1,938 @@
+{
+ "_pool": {
+  "pool_id": "security",
+  "title": "安全专项池",
+  "desc": "安全散点全量（CWE 对齐）＋通用/AI/LLM 安全层＋MCP 与 agentic 安全面（含致命三要素）。适用于发布前安全快检或安全聚焦复审。",
+  "derived_from": {
+   "file": "data/checkpoints.json",
+   "template_version": "0.4.0",
+   "sha16": "583958fb419bb9ce"
+  },
+  "selection_rule": "见 audit/build_pools.py RULES（唯一事实源；重新生成即重放）",
+  "generated_at": "2026-10-07 21:22",
+  "count": 55,
+  "by_severity": {
+   "medium": 8,
+   "high": 30,
+   "critical": 17
+  },
+  "by_verification": {
+   "U": 3,
+   "S": 43,
+   "R": 8,
+   "A": 1
+  }
+ },
+ "template_version": "0.4.0",
+ "layer_history": "45 → 42（轮6删） → 45（v1.4 安全回归）",
+ "checkpoints": [
+  {
+   "id": "GEN-SEC-001",
+   "layer": "通用·安全",
+   "subdomain": "安全边界划分",
+   "title": "安全边界不清：安全控制点分散重复、无统一收口",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "scattered-security-controls",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：盘点校验/鉴权/审计控制点的分布，检查是否统一在边界层收口；分散补丁式控制需结合设计意图判断",
+   "params": [
+    "file_glob",
+    "security_control_patterns"
+   ]
+  },
+  {
+   "id": "GEN-SEC-002",
+   "layer": "通用·安全",
+   "subdomain": "信任边界",
+   "title": "信任边界失守：跨进程/网络边界数据未重新校验",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "trust-boundary-validation",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：先确定信任边界位置（网络入口/服务间/进程间），再检查跨边界数据是否在边界处重新校验而非默认可信",
+   "params": [
+    "file_glob",
+    "boundary_crossing_points"
+   ]
+  },
+  {
+   "id": "GEN-SEC-003",
+   "layer": "通用·安全",
+   "subdomain": "权限模型",
+   "title": "权限默认放行：受保护端点未挂授权检查或默认允许",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "default-allow-authorization",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "枚举路由注册与授权钩子/装饰器/中间件挂载，检出未见授权检查的受保护端点及默认放行配置",
+   "params": [
+    "file_glob",
+    "route_glob",
+    "auth_hook_patterns"
+   ],
+   "cwe_map": [
+    "cwe-284"
+   ]
+  },
+  {
+   "id": "GEN-SEC-004",
+   "layer": "通用·安全",
+   "subdomain": "密钥生命周期",
+   "title": "密钥管理失控：密钥硬编码或入库、无轮换与分级",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "secret-lifecycle-mismanaged",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "扫描代码与数据文件中的密钥模式与敏感文件入库；轮换/分级缺失以密钥管理机制与记录检索作补充推断",
+   "params": [
+    "file_glob",
+    "secret_patterns"
+   ]
+  },
+  {
+   "id": "AIG-SEC-001",
+   "layer": "AIG·安全幻觉",
+   "subdomain": "自创密码学",
+   "title": "幻觉加密算法或自写认证：手写密码学原语、编码冒充加密、自解析令牌",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-hallucinated-crypto",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "检索加解密与签名校验是否只调用成熟库原语，标记手写轮换、异或、无密钥编码与自解析令牌的实现",
+   "params": [
+    "file_glob",
+    "crypto_call_patterns"
+   ]
+  },
+  {
+   "id": "AIG-SEC-002",
+   "layer": "AIG·安全幻觉",
+   "subdomain": "不安全默认",
+   "title": "出厂默认不安全：默认凭据、调试或详细错误开启、宽松跨域与权限",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-insecure-default",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "扫描默认配置值与调试、跨域、权限开关，标记未显式收紧的出厂默认项",
+   "params": [
+    "file_glob",
+    "config_defaults"
+   ]
+  },
+  {
+   "id": "AIG-SEC-003",
+   "layer": "AIG·安全幻觉",
+   "subdomain": "示例密钥",
+   "title": "文档或示例中的密钥被用于非测试路径",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "example-key-in-production",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "定位密钥类常量的全部使用点，标记出现在非测试、非示例路径的引用（只输出路径与变量名，不记录值）",
+   "params": [
+    "file_glob",
+    "usage_paths"
+   ]
+  },
+  {
+   "id": "AIG-SEC-004",
+   "layer": "AIG·安全幻觉",
+   "subdomain": "注释信任",
+   "title": "信任注释声称的安全（注释写已校验、已加密，但代码无对应实现）",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "unverified-security-claim",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "提取已校验、已加密、已过滤类注释并列出其相邻代码的防护调用，无对应实现者标为候选（真伪需人工或模型推断）",
+   "params": [
+    "file_glob",
+    "comment_patterns"
+   ]
+  },
+  {
+   "id": "LLM-TOOL-003",
+   "layer": "LLM·工具调用",
+   "subdomain": "权限边界与工具滥用",
+   "title": "危险工具（写文件、执行命令、外发请求）无白名单或人工确认门",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-tool-privilege-unbounded-cwe-862",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：枚举危险工具调用点，检查是否存在授权校验、参数白名单或人工确认门",
+   "params": [
+    "sink_type",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-SEC-001",
+   "layer": "LLM·安全",
+   "subdomain": "提示注入·直接",
+   "title": "用户输入与指令同层拼接，无角色隔离与输入边界标记",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "security-prompt-injection-direct-cwe-1427",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：用预注册注入样例集（改写指令、索取系统提示）测试，检查是否隔离或拒绝",
+   "params": [
+    "prompt_path",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-SEC-002",
+   "layer": "LLM·安全",
+   "subdomain": "提示注入·间接（经工具/检索/文件）",
+   "title": "工具返回值、检索结果与文件内容中的指令被直接执行，无来源信任分级",
+   "verification": "R",
+   "severity_default": "critical",
+   "defect_class": "security-prompt-injection-indirect-cwe-1427",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：在工具返回值与检索文档中植入指令，观察是否被当作指令执行",
+   "params": [
+    "tool_name",
+    "retrieval_config"
+   ]
+  },
+  {
+   "id": "LLM-SEC-003",
+   "layer": "LLM·安全",
+   "subdomain": "越狱面",
+   "title": "越狱与角色扮演改写可绕过约束，无对抗测试基线",
+   "verification": "A",
+   "severity_default": "high",
+   "defect_class": "security-jailbreak-bypass-cwe-693",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "消融：对约束类目做对抗变体压测，比对无变体基线的绕过率",
+   "params": [
+    "eval_set",
+    "prompt_path"
+   ]
+  },
+  {
+   "id": "LLM-SEC-004",
+   "layer": "LLM·安全",
+   "subdomain": "数据外泄通道",
+   "title": "密钥与隐私被拼入提示词或日志，出站请求无白名单",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-data-exfiltration-channel-cwe-200",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：对密钥引用点、日志写点与出站请求点取交集，检查是否存在明文外发",
+   "params": [
+    "env_key",
+    "sink_type"
+   ]
+  },
+  {
+   "id": "LLM-SEC-005",
+   "layer": "LLM·安全",
+   "subdomain": "输出渲染 XSS 面",
+   "title": "模型输出未转义即渲染为 HTML 或富文本",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-output-render-xss-cwe-79",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：定位渲染点，检查 innerHTML、dangerouslySetInnerHTML、v-html 或未转义模板用法",
+   "params": [
+    "render_path",
+    "file_glob"
+   ]
+  },
+  {
+   "id": "SEC-001",
+   "layer": "安全散点",
+   "subdomain": "SQL 注入",
+   "title": "外部输入未参数化、以拼接方式进入 SQL 语句",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-sql-injection-cwe-89",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：从请求参数/事件字段追踪到数据库查询 API，检查是否经字符串拼接或格式化进入执行入口，而非绑定参数",
+   "params": [
+    "file_glob",
+    "source=request-param",
+    "sink=db-execute"
+   ]
+  },
+  {
+   "id": "SEC-002",
+   "layer": "安全散点",
+   "subdomain": "命令注入",
+   "title": "外部输入拼接进系统命令或 shell 执行",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-command-injection-cwe-78",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪子进程/shell 执行入口（shell 解释、os.system、exec 族）的参数是否含未转义的外部输入，检查是否已参数数组化与元字符过滤",
+   "params": [
+    "file_glob",
+    "source=request-param",
+    "sink=shell-exec"
+   ]
+  },
+  {
+   "id": "SEC-003",
+   "layer": "安全散点",
+   "subdomain": "路径遍历",
+   "title": "用户输入拼接进文件路径未校验",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-path-traversal-cwe-22",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：从入口点的字符串参数追踪到文件 API 调用，检查是否经过白名单/规范化（规范化后前缀归属校验）",
+   "params": [
+    "file_glob",
+    "sink=file-write"
+   ]
+  },
+  {
+   "id": "SEC-004",
+   "layer": "安全散点",
+   "subdomain": "不安全的反序列化",
+   "title": "对不可信数据反序列化且未限制对象构造范围",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-deserialization-cwe-502",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪 pickle 加载、非安全模式的 YAML 加载、原生对象反序列化等入口的输入来源，检查是否外部可控且无类型白名单或安全模式",
+   "params": [
+    "file_glob",
+    "source=external-payload",
+    "sink=deserialize"
+   ]
+  },
+  {
+   "id": "SEC-005",
+   "layer": "安全散点",
+   "subdomain": "XSS",
+   "title": "未转义的用户输入回显到 HTML 或前端渲染汇",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-xss-cwe-79",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：从请求/存储字段追踪到模板自动转义关闭处及前端危险渲染汇（HTML 注入型、DOM 型），检查转义策略与内容安全策略",
+   "params": [
+    "file_glob",
+    "source=request-or-stored-field",
+    "sink=html-render"
+   ]
+  },
+  {
+   "id": "SEC-006",
+   "layer": "安全散点",
+   "subdomain": "服务端模板注入 SSTI",
+   "title": "用户输入被当作模板内容参与渲染",
+   "verification": "R",
+   "severity_default": "critical",
+   "defect_class": "security-ssti-cwe-1336",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "构造验证：向模板渲染入口传入含模板求值语法的载荷，观察是否被求值；静态侧追踪模板字符串是否拼接了外部输入而非仅作为变量传参",
+   "params": [
+    "file_glob",
+    "source=request-param",
+    "sink=template-render"
+   ]
+  },
+  {
+   "id": "SEC-007",
+   "layer": "安全散点",
+   "subdomain": "XXE 外部实体注入",
+   "title": "XML 解析未禁用外部实体且输入不可信",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "security-xxe-cwe-611",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "构造验证：提交含外部实体声明的 XML，观察是否被解析、回显或触发外连；静态侧核对解析器的实体与 DTD 开关配置",
+   "params": [
+    "file_glob",
+    "source=xml-body",
+    "sink=xml-parse"
+   ]
+  },
+  {
+   "id": "SEC-008",
+   "layer": "安全散点",
+   "subdomain": "SSRF",
+   "title": "服务端按外部输入发起请求且未限制目标",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "security-ssrf-cwe-918",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "构造验证：以回环、内网与元数据服务地址作为目标参数发起请求，观察可达性差异；静态侧追踪 URL 参数到 HTTP 客户端并核对解析、重定向与协议限制",
+   "params": [
+    "file_glob",
+    "source=url-param",
+    "sink=http-client"
+   ]
+  },
+  {
+   "id": "SEC-009",
+   "layer": "安全散点",
+   "subdomain": "开放重定向",
+   "title": "跳转目标取自请求参数且未做白名单校验",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "security-open-redirect-cwe-601",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪重定向目标或 Location 赋值是否直接采用请求参数，检查是否为固定映射或相对路径白名单",
+   "params": [
+    "file_glob",
+    "source=redirect-param",
+    "sink=http-redirect"
+   ]
+  },
+  {
+   "id": "SEC-010",
+   "layer": "安全散点",
+   "subdomain": "硬编码凭据",
+   "title": "凭据类字段以字面量常量硬编码于源码或配置",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-hardcoded-credentials-cwe-798",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级扫描：定位赋值给密码、令牌、密钥、口令类命名字段的字面量常量，核对是否应由环境变量或密钥管理提供；只登记文件、行号与字段名，不登记任何取值内容",
+   "params": [
+    "file_glob",
+    "sink=config-literal"
+   ]
+  },
+  {
+   "id": "SEC-011",
+   "layer": "安全散点",
+   "subdomain": "弱加密/加密误用",
+   "title": "使用已废弃算法或误用加密模式",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-weak-crypto-cwe-327",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：枚举加密与哈希 API 调用，核对算法、工作模式、初始向量来源与密钥派生，检查是否缺少完整性认证或使用可复现的固定参数",
+   "params": [
+    "file_glob",
+    "sink=crypto-api"
+   ]
+  },
+  {
+   "id": "SEC-012",
+   "layer": "安全散点",
+   "subdomain": "不安全随机数",
+   "title": "安全用途取值来自非密码学随机源",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "security-insecure-random-cwe-338",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：定位会话标识、重置码、盐值等安全用途取值的随机源，核对是否为密码学安全生成器且种子外部不可控",
+   "params": [
+    "file_glob",
+    "sink=random-api"
+   ]
+  },
+  {
+   "id": "SEC-013",
+   "layer": "安全散点",
+   "subdomain": "认证缺失或绕过",
+   "title": "敏感入口缺少认证或认证判断可被绕过",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-auth-bypass-cwe-287",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：枚举路由与入口点，核对认证中间件的覆盖是否完整，并检查判断分支中的短路、默认放行与类型混淆路径",
+   "params": [
+    "file_glob",
+    "surface=route",
+    "sink=auth-check"
+   ],
+   "cwe_map": [
+    "cwe-287",
+    "cwe-288"
+   ]
+  },
+  {
+   "id": "SEC-014",
+   "layer": "安全散点",
+   "subdomain": "授权缺失（越权）",
+   "title": "资源操作未校验归属或权限，可横向或纵向越权",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-missing-authorization-cwe-862",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪以请求提供的对象标识进行读写的路径，核对查询与更新是否以当前主体做归属或权限过滤",
+   "params": [
+    "file_glob",
+    "source=request-object-id",
+    "sink=db-write"
+   ],
+   "cwe_map": [
+    "cwe-639",
+    "cwe-863"
+   ]
+  },
+  {
+   "id": "SEC-015",
+   "layer": "安全散点",
+   "subdomain": "会话管理缺陷",
+   "title": "会话标识生成、续期或失效处理不当",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-session-management-cwe-384",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪登录前后会话标识的生成与轮换、登出与服务端失效路径，核对会话 Cookie 属性与固定风险处置",
+   "params": [
+    "file_glob",
+    "sink=session-store"
+   ]
+  },
+  {
+   "id": "SEC-016",
+   "layer": "安全散点",
+   "subdomain": "CSRF",
+   "title": "状态变更入口缺少跨站请求伪造防护",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-csrf-cwe-352",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：枚举改变状态的方法与路由，核对防伪令牌、同站属性与来源校验的覆盖是否存在缺口及豁免过宽",
+   "params": [
+    "file_glob",
+    "surface=state-changing-route"
+   ]
+  },
+  {
+   "id": "SEC-017",
+   "layer": "安全散点",
+   "subdomain": "竞态条件 TOCTOU",
+   "title": "检查与使用之间存在可被抢占的时间窗",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "security-toctou-cwe-367",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "构造验证：并发或替换目标以抢占检查与使用之间的窗口，观察是否绕过判定；静态侧定位先检查后使用的成对调用与缺失的原子性保证",
+   "params": [
+    "file_glob",
+    "sink=check-then-use"
+   ]
+  },
+  {
+   "id": "SEC-018",
+   "layer": "安全散点",
+   "subdomain": "整数溢出",
+   "title": "算术结果未做溢出或回绕边界校验",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-integer-overflow-cwe-190",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：核对长度、计数、金额等运算的类型宽度与上下界校验，重点关注外部可控因子参与的乘法与窄化强转",
+   "params": [
+    "file_glob",
+    "sink=arithmetic-cast"
+   ]
+  },
+  {
+   "id": "SEC-019",
+   "layer": "安全散点",
+   "subdomain": "缓冲区边界",
+   "title": "内存拷贝或索引写入缺少长度边界校验",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-out-of-bounds-cwe-787",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：核对定长缓冲区的读写调用与索引来源，检查长度参数是否外部可控且未经上界校验，是否用显式长度替代有界安全接口",
+   "params": [
+    "file_glob",
+    "sink=memory-write"
+   ]
+  },
+  {
+   "id": "SEC-020",
+   "layer": "安全散点",
+   "subdomain": "敏感信息经日志/错误泄漏",
+   "title": "凭据或个人信息进入日志与错误响应路径",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-log-leakage-cwe-532",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：从敏感字段来源追踪到日志与错误响应汇，检查脱敏处理与对外错误细节暴露程度，含堆栈与调试开关",
+   "params": [
+    "file_glob",
+    "source=sensitive-field",
+    "sink=log-sink"
+   ],
+   "cwe_map": [
+    "cwe-200"
+   ]
+  },
+  {
+   "id": "SEC-021",
+   "layer": "安全散点",
+   "subdomain": "依赖组件漏洞 SCA",
+   "title": "依赖清单含已知漏洞版本且无锁定或审计",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-vulnerable-dependency-cwe-1395",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：解析依赖清单与锁文件，比对已知漏洞库并核对版本约束是否放行到受影响区间，评估实际可达调用面",
+   "params": [
+    "file_glob",
+    "sink=dependency-manifest"
+   ]
+  },
+  {
+   "id": "SEC-022",
+   "layer": "安全散点",
+   "subdomain": "供应链投毒/仿名依赖",
+   "title": "依赖名称与来源可信度未校验",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-supply-chain-cwe-1357",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：核对依赖名与官方名称的近似度、解析源是否为官方仓库、是否校验签名或完整性摘要，标记非官方源与缺失完整性校验项",
+   "params": [
+    "file_glob",
+    "sink=dependency-manifest"
+   ]
+  },
+  {
+   "id": "SEC-023",
+   "layer": "安全散点",
+   "subdomain": "CORS 配置错误",
+   "title": "跨域策略反射任意来源或与凭据组合过宽",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-cors-misconfig-cwe-942",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：枚举跨域响应头配置，核对是否回显请求来源、是否使用通配来源、是否与允许凭据组合，以及来源校验的匹配方式",
+   "params": [
+    "file_glob",
+    "sink=cors-config"
+   ]
+  },
+  {
+   "id": "SEC-024",
+   "layer": "安全散点",
+   "subdomain": "拒绝服务向量",
+   "title": "外部输入可触发无界资源消耗",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "security-dos-resource-cwe-400",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "构造验证：以超大、深层或高频输入压测无上限的读取、递归、正则与分配路径，观察资源增长与超时保护；静态侧核对限额、背压与流式处理",
+   "params": [
+    "file_glob",
+    "sink=unbounded-alloc"
+   ]
+  },
+  {
+   "id": "SEC-025",
+   "layer": "安全散点",
+   "subdomain": "文件上传处理缺陷",
+   "title": "上传文件的类型、落地路径或执行权限未做后置校验",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-file-upload-cwe-434",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪上传内容与文件名的使用路径，核对类型判定方式、落地目录是否位于可访问或可执行位置、是否重命名与限定扩展名",
+   "params": [
+    "file_glob",
+    "source=upload-body",
+    "sink=file-write"
+   ]
+  },
+  {
+   "id": "SEC-026",
+   "layer": "安全散点",
+   "subdomain": "内存安全（gated）",
+   "title": "内存安全家族：UAF/越界读写/栈堆缓冲区溢出（仅 C/C++/unsafe Rust 启用）",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-memory-safety-cwe-416-125-120-121-122",
+   "source": "重建：CWE Top25 2025 缺口补全（v0.3 有效性调查）",
+   "status": "active",
+   "probe": "gated 条目：非 C/C++/unsafe Rust 项目自动 N/A；启用时审 UAF/越界读写/缓冲区模式",
+   "params": [
+    "file_glob",
+    "gate:lang=c-cpp-rust-unsafe"
+   ]
+  },
+  {
+   "id": "SEC-027",
+   "layer": "安全散点",
+   "subdomain": "空引用解引用",
+   "title": "可空返回/可选值未判空即解引用",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "security-null-deref-cwe-476",
+   "source": "重建：CWE Top25 2025（排名 +8）缺口补全",
+   "status": "active",
+   "probe": "数据流：可空返回/可选链缺失处的解引用点清单",
+   "params": [
+    "file_glob"
+   ]
+  },
+  {
+   "id": "SEC-028",
+   "layer": "安全散点",
+   "subdomain": "代码注入",
+   "title": "eval/exec/动态导入的显式注入面",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-code-injection-cwe-94",
+   "source": "重建：CWE Top25 2025 缺口补全（与反序列化 SEC-004 分列）",
+   "status": "active",
+   "probe": "sinks：eval/exec/Function()/动态 import 的输入来源追踪，外部可控即缺陷",
+   "params": [
+    "file_glob",
+    "sink=eval-exec"
+   ]
+  },
+  {
+   "id": "SEC-029",
+   "layer": "安全散点",
+   "subdomain": "输入校验",
+   "title": "入口参数边界校验缺失（从 AIG-DEFE 显式化）",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "security-input-validation-cwe-20",
+   "source": "重建：CWE Top25 2025（排名 −6 仍高位）缺口补全",
+   "status": "active",
+   "probe": "入口点参数→类型/范围/长度校验缺失清单",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "SEC-030",
+   "layer": "安全散点",
+   "subdomain": "授权变体",
+   "title": "IDOR/功能级越权（用户可控键直查资源，从 SEC-014 拆出）",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-authz-variants-cwe-639-863",
+   "source": "重建：CWE Top25 2025（639 +6 / 863 在榜）缺口补全",
+   "status": "active",
+   "probe": "数据流：用户可控键直入资源查询/操作，无归属校验即缺陷",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "SEC-031",
+   "layer": "安全散点",
+   "subdomain": "幽灵包（slopsquatting）",
+   "title": "新引入包名未做 registry 存在性核验",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "security-slopsquatting-package-hallucination",
+   "source": "Spracklen 2024（幽灵包 5.2%/21.7%，205,474 唯一名）× v0.3 有效性调查",
+   "status": "active",
+   "probe": "实验：对全部新引入包名查 registry 存在性＋发布时间/下载量异常核验；不存在名=高危（可被抢注投毒）",
+   "params": [
+    "file_glob",
+    "dep=registry-check"
+   ]
+  },
+  {
+   "id": "LLM-SEC-006",
+   "layer": "LLM·安全",
+   "subdomain": "系统提示泄漏",
+   "title": "系统提示出现在用户/第三方可读路径（错误信息/调试端点/日志）",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "security-system-prompt-leakage",
+   "source": "OWASP LLM Top10 2025 LLM07 缺口补全（v0.3）",
+   "status": "active",
+   "probe": "数据流：系统提示串→输出路径（响应/错误/日志/调试接口）的暴露点",
+   "params": [
+    "file_glob",
+    "prompt_path"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-001",
+   "layer": "LLM·安全",
+   "subdomain": "身份与代理间信任",
+   "title": "身份与权限滥用＋代理间信任链：子代理/工具继承超范围身份，委派与消息无校验",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "agentic-identity-trust",
+   "source": "OWASP Top 10 for Agentic Applications 2025-12（ASI03+ASI07）× agentic 缺口闭合",
+   "status": "active",
+   "probe": "读码：子代理/工具的身份传递与权限声明、跨代理消息与委派入口的校验存在性",
+   "params": [
+    "file_glob",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-003",
+   "layer": "LLM·韧性",
+   "subdomain": "级联失败与失控代理",
+   "title": "多步骤/多代理单点失败无熔断；无全局停止开关；越界持续运行风险",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "agentic-cascading-and-rogue",
+   "source": "OWASP Agentic Top10（ASI08+ASI10）",
+   "status": "active",
+   "probe": "读码：熔断/全局停止/步数与其他硬上限存在性；异常代理的隔离与回收路径",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "SEC-032",
+   "layer": "安全散点",
+   "subdomain": "属性级授权",
+   "title": "对象属性级授权缺失/批量赋值：过度暴露可读字段或可写字段未白名单",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-mass-assignment-cwe-915",
+   "source": "OWASP API Security Top10 2023 API3（扩大化搜查 v0.4.0）",
+   "status": "active",
+   "probe": "数据流：外部对象直接映射进模型/数据库写入（批量赋值面）；响应序列化字段与授权范围比对",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "SEC-033",
+   "layer": "安全散点",
+   "subdomain": "第三方API消费",
+   "title": "不安全消费第三方 API：响应未校验直接采信/透传",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "security-unsafe-api-consumption",
+   "source": "OWASP API Security Top10 2023 API10（v0.4.0）",
+   "status": "active",
+   "probe": "读码：第三方响应→内部使用的路径上是否有 schema/来源校验；错误响应是否被当可信输入",
+   "params": [
+    "file_glob",
+    "api_endpoint"
+   ]
+  },
+  {
+   "id": "LLM-MCP-001",
+   "layer": "LLM·工具调用",
+   "subdomain": "工具描述投毒",
+   "title": "工具描述投毒：工具元数据/说明文本中藏指令或误导性权限声明",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "mcp-tool-poisoning",
+   "source": "OWASP MCP Top10 MCP03＋Simon Willison 工具投毒先例（v0.4.0）",
+   "status": "active",
+   "probe": "读取全部工具/MCP 描述文本，扫描隐藏指令模式（不可见字符/条件触发语句）；权限声明与实际能力比对",
+   "params": [
+    "file_glob",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-MCP-002",
+   "layer": "LLM·工具调用",
+   "subdomain": "上下文过度共享",
+   "title": "上下文注入与过度共享：跨服务器/跨工具上下文越权互见",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "mcp-context-over-sharing",
+   "source": "OWASP MCP Top10 MCP10（v0.4.0）",
+   "status": "active",
+   "probe": "读码：上下文/记忆在服务器与工具之间的传递范围与隔离（哪些数据进哪些服务器）",
+   "params": [
+    "file_glob",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-MCP-003",
+   "layer": "LLM·工具调用",
+   "subdomain": "MCP令牌管理",
+   "title": "MCP 令牌与密钥管理：存储位置/传递方式/权限范围",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "mcp-token-mismanagement",
+   "source": "OWASP MCP Top10 MCP01（v0.4.0）",
+   "status": "active",
+   "probe": "读码：令牌的存放（明文配置文件? Keychain?）与传递路径；权限范围是否最小化（只记位置与类型，D-004）",
+   "params": [
+    "file_glob",
+    "env_key"
+   ]
+  },
+  {
+   "id": "LLM-MCP-004",
+   "layer": "LLM·工具调用",
+   "subdomain": "影子MCP与审计",
+   "title": "影子 MCP 服务器：未纳管/未审计的服务器在运行；调用无审计遥测",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "mcp-shadow-server",
+   "source": "OWASP MCP Top10 MCP09+MCP08（v0.4.0）",
+   "status": "active",
+   "probe": "清单：实际配置的 MCP 服务器 ↔ 经批准清单比对；调用日志/遥测存在性",
+   "params": [
+    "file_glob",
+    "tool_name",
+    "log_config"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-004",
+   "layer": "LLM·安全",
+   "subdomain": "致命三要素组合",
+   "title": "致命三要素组合：私有数据访问×不可信内容摄入×外部通信通道三者齐备且无隔离",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "lethal-trifecta-composite",
+   "source": "Lethal Trifecta（Simon Willison/Palo Alto 2026）（v0.4.0）",
+   "status": "active",
+   "probe": "组合判定：分别枚举三要素证据（数据面/摄入面/出站面），三者齐备且无分隔即判高危",
+   "params": [
+    "file_glob",
+    "entrypoint",
+    "sink=network"
+   ]
+  }
+ ]
+}

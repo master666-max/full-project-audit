@@ -1,0 +1,3534 @@
+{
+ "template_version": "0.4.0",
+ "generated_at": "2026-10-07 20:42 | v0.3.0 合入 2026-10-07 21:10",
+ "mode": "重建（八轮原始明细不在手；来源字段逐条标注）",
+ "layer_history": "45 → 42（轮6删） → 45（v1.4 安全回归）",
+ "board_counts": {
+  "通用代码": 22,
+  "AI生成代码": 6,
+  "个人工程": 3,
+  "LLM应用": 14,
+  "安全散点组": 25
+ },
+ "stats": {
+  "total": 214,
+  "by_verification": {
+   "S": 133,
+   "U": 28,
+   "R": 46,
+   "A": 7
+  },
+  "by_severity": {
+   "high": 108,
+   "medium": 73,
+   "low": 11,
+   "critical": 22
+  },
+  "by_layer": {
+   "通用·架构": 4,
+   "通用·质量": 3,
+   "通用·性能": 4,
+   "通用·错误": 4,
+   "通用·可测试": 3,
+   "通用·可维护": 3,
+   "通用·数据库": 4,
+   "通用·前端": 4,
+   "通用·API": 4,
+   "通用·依赖": 3,
+   "通用·CI/CD": 3,
+   "通用·配置": 3,
+   "通用·日志": 3,
+   "通用·并发": 3,
+   "通用·可靠性": 4,
+   "通用·业务": 3,
+   "通用·文档": 3,
+   "通用·协作": 3,
+   "通用·i18n": 3,
+   "通用·合规": 3,
+   "通用·成本": 3,
+   "通用·安全": 4,
+   "AIG·正确性": 5,
+   "AIG·幻觉 API": 4,
+   "AIG·防御缺失": 4,
+   "AIG·安全幻觉": 4,
+   "AIG·重复漂移": 4,
+   "AIG·依赖失控": 4,
+   "PER·可维护": 3,
+   "PER·复现": 3,
+   "PER·版本": 3,
+   "LLM·prompt": 4,
+   "LLM·上下文": 4,
+   "LLM·结构化输出": 4,
+   "LLM·工具调用": 9,
+   "LLM·循环控制": 5,
+   "LLM·幻觉接地": 4,
+   "LLM·RAG": 8,
+   "LLM·评估": 4,
+   "LLM·记忆": 4,
+   "LLM·成本": 4,
+   "LLM·可观测": 4,
+   "LLM·韧性": 7,
+   "LLM·安全": 8,
+   "LLM·延迟": 4,
+   "安全散点": 33
+  },
+  "defect_classes": 212
+ },
+ "checkpoints": [
+  {
+   "id": "GEN-ARCH-001",
+   "layer": "通用·架构",
+   "subdomain": "循环依赖",
+   "title": "循环依赖：模块 A 与 B 互相导入形成依赖环",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "circular-dependency",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "构建模块级 import 图并计算强连通分量，环内模块数 ≥ 2 即命中，输出环路径供复核",
+   "params": [
+    "file_glob",
+    "max_cycle_length"
+   ]
+  },
+  {
+   "id": "GEN-ARCH-002",
+   "layer": "通用·架构",
+   "subdomain": "依赖方向",
+   "title": "分层违反：底层模块反向依赖上层（如 model 导入 controller）",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "layer-violation",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "按目录/命名映射层次（domain < service < api），检出由低层指向高层的 import 边",
+   "params": [
+    "file_glob",
+    "layer_map"
+   ]
+  },
+  {
+   "id": "GEN-ARCH-003",
+   "layer": "通用·架构",
+   "subdomain": "模块边界",
+   "title": "模块边界泄漏：跨模块直接引用对方内部实现路径",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "boundary-leak",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "匹配跨模块 import 是否绕过对方公开入口（index/__init__/public 路径）直达内部文件",
+   "params": [
+    "file_glob",
+    "public_entry_glob"
+   ]
+  },
+  {
+   "id": "GEN-ARCH-004",
+   "layer": "通用·架构",
+   "subdomain": "分层",
+   "title": "分层缺失：单文件同时承担路由、业务与数据访问职责",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "missing-layer-separation",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：同一文件内同时出现请求解析、业务分支与 SQL/ORM 调用；职责混杂需结合项目规格或同类模块参照判断",
+   "params": [
+    "file_glob"
+   ]
+  },
+  {
+   "id": "GEN-QUAL-001",
+   "layer": "通用·质量",
+   "subdomain": "死代码",
+   "title": "死代码：无引用函数、导出符号与不可达分支残留",
+   "verification": "S",
+   "severity_default": "low",
+   "defect_class": "dead-code",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "静态引用计数：仓库内零引用的非导出符号、被恒假条件包裹的分支、与入口点无路径连通的模块",
+   "params": [
+    "file_glob",
+    "entrypoint_glob"
+   ]
+  },
+  {
+   "id": "GEN-QUAL-002",
+   "layer": "通用·质量",
+   "subdomain": "重复",
+   "title": "重复实现：同一逻辑在多处近似拷贝（克隆代码）",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "code-duplication",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "token 级克隆检测：对归一化代码块做相似度聚类，报告跨文件高相似簇及其差异点",
+   "params": [
+    "file_glob",
+    "min_tokens"
+   ]
+  },
+  {
+   "id": "GEN-QUAL-003",
+   "layer": "通用·质量",
+   "subdomain": "复杂度",
+   "title": "复杂度过高：单函数圈复杂度或嵌套深度超阈值",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "high-cyclomatic-complexity",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "对每个函数计算分支点数（圈复杂度）与最大嵌套深度，超过阈值即命中并给出热点排序",
+   "params": [
+    "file_glob",
+    "complexity_threshold"
+   ]
+  },
+  {
+   "id": "GEN-PERF-001",
+   "layer": "通用·性能",
+   "subdomain": "N+1",
+   "title": "N+1 调用：循环体内逐条发起数据库/HTTP 请求",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "n+1-query",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "AST 检出循环体内对数据库/HTTP 客户端的调用点，且调用参数含迭代变量；真实影响确认需运行查询计数（本判据仅判定结构存在）",
+   "params": [
+    "file_glob",
+    "io_call_patterns"
+   ]
+  },
+  {
+   "id": "GEN-PERF-002",
+   "layer": "通用·性能",
+   "subdomain": "无界循环",
+   "title": "无界循环/无界增长：缺终止条件或结果集无上限累积",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "unbounded-loop",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出条件下无上界的 while 循环、递归无深度限制、分页/重试无最大次数、集合累积无容量约束",
+   "params": [
+    "file_glob",
+    "max_iterations"
+   ]
+  },
+  {
+   "id": "GEN-PERF-003",
+   "layer": "通用·性能",
+   "subdomain": "内存增长",
+   "title": "内存增长：长生命周期缓存或监听器无上限、无淘汰",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "memory-growth",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "实验设计：对声明为长驻的模块跑长稳/循环负载，采样 RSS 与容器内存曲线，观察单调增长且不回落即确认泄漏型增长",
+   "params": [
+    "file_glob",
+    "soak_duration"
+   ]
+  },
+  {
+   "id": "GEN-PERF-004",
+   "layer": "通用·性能",
+   "subdomain": "重复计算",
+   "title": "重复计算：循环不变量与可复用结果在每次迭代中重算",
+   "verification": "S",
+   "severity_default": "low",
+   "defect_class": "repeated-computation",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "AST 分析：定位循环体内不依赖迭代变量的表达式与不变的外部查询调用，检查是否可外提或缓存",
+   "params": [
+    "file_glob",
+    "loop_body_scope"
+   ]
+  },
+  {
+   "id": "GEN-ERR-001",
+   "layer": "通用·错误",
+   "subdomain": "异常吞没",
+   "title": "异常吞没：catch 后空处理或仅打印日志后继续执行",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "swallowed-exception",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出 catch/except 块体为空、仅含日志/pass、或在错误后继续正常返回值而无追踪手段的位置",
+   "params": [
+    "file_glob",
+    "catch_patterns"
+   ]
+  },
+  {
+   "id": "GEN-ERR-002",
+   "layer": "通用·错误",
+   "subdomain": "静默失败",
+   "title": "静默失败：错误路径返回默认值/空值且无任何告警",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "silent-failure",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出错误分支直接 `return null/默认值/空集合` 且该分支无日志、无异常抛出的模式，结合调用方是否检查返回值判断",
+   "params": [
+    "file_glob",
+    "fallback_patterns"
+   ]
+  },
+  {
+   "id": "GEN-ERR-003",
+   "layer": "通用·错误",
+   "subdomain": "错误传播",
+   "title": "传播链断裂：捕获后抛出新错误丢失原始 cause/堆栈",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "error-cause-loss",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出 catch 后 throw 新错误未携带原异常（无 cause/InnerException/from 链）的位置",
+   "params": [
+    "file_glob",
+    "rethrow_patterns"
+   ]
+  },
+  {
+   "id": "GEN-ERR-004",
+   "layer": "通用·错误",
+   "subdomain": "错误信息",
+   "title": "错误信息不可诊断：缺失操作对象、参数与上下文",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "unhelpful-error-message",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：抽查错误构造点，信息中无实体标识/参数值/动作名，需人工判断其是否足以定位问题",
+   "params": [
+    "file_glob"
+   ]
+  },
+  {
+   "id": "GEN-TEST-001",
+   "layer": "通用·可测试",
+   "subdomain": "依赖注入",
+   "title": "依赖未注入：函数内部直接构造外部 IO 客户端",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "hardcoded-dependency",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出业务函数体内直接 new/实例化数据库、HTTP、文件客户端且不可从外部替换的位置",
+   "params": [
+    "file_glob",
+    "entrypoint_glob"
+   ]
+  },
+  {
+   "id": "GEN-TEST-002",
+   "layer": "通用·可测试",
+   "subdomain": "确定性",
+   "title": "不确定性：直接调用当前时间/随机数/网络，测试无法控制",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "nondeterministic-source",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出业务逻辑中直接调用系统时钟、随机数生成器、环境变量/网络的点，检查是否经由可注入的参数或时钟抽象",
+   "params": [
+    "file_glob",
+    "nondeterminism_sources"
+   ]
+  },
+  {
+   "id": "GEN-TEST-003",
+   "layer": "通用·可测试",
+   "subdomain": "测试覆盖设计",
+   "title": "测试覆盖缺口：核心模块与关键分支无对应测试",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "missing-test-coverage",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "实验设计：运行覆盖率工具，将核心模块（入口/金额/权限/持久化路径）的行与分支覆盖与阈值比对，列出零覆盖关键文件",
+   "params": [
+    "file_glob",
+    "coverage_threshold"
+   ]
+  },
+  {
+   "id": "GEN-MAINT-001",
+   "layer": "通用·可维护",
+   "subdomain": "魔法数",
+   "title": "魔法数：重复出现的数值/字符串字面量未提为常量",
+   "verification": "S",
+   "severity_default": "low",
+   "defect_class": "magic-number",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "统计非 0/1 数值字面量与重复字符串在业务代码中的出现次数，超阈值且无命名常量定义即命中",
+   "params": [
+    "file_glob",
+    "literal_min_occurrences"
+   ]
+  },
+  {
+   "id": "GEN-MAINT-002",
+   "layer": "通用·可维护",
+   "subdomain": "配置外置",
+   "title": "配置硬编码：环境相关地址/端口/路径/凭据写死在代码中",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "hardcoded-config",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出代码中的 URL、IP、端口、绝对路径、环境名等字面量，且未读取配置接口",
+   "params": [
+    "file_glob",
+    "env_key_patterns"
+   ]
+  },
+  {
+   "id": "GEN-MAINT-003",
+   "layer": "通用·可维护",
+   "subdomain": "一致性",
+   "title": "命名不一致：同一概念多种命名格式与拼写混用",
+   "verification": "S",
+   "severity_default": "low",
+   "defect_class": "naming-inconsistency",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "统计标识符命名风格（camel/snake/Pascal）与近义词拼写在同模块内的分布，混用即命中",
+   "params": [
+    "file_glob",
+    "naming_styles"
+   ]
+  },
+  {
+   "id": "GEN-DB-001",
+   "layer": "通用·数据库",
+   "subdomain": "迁移",
+   "title": "迁移风险：schema 变更无迁移脚本或迁移不可回滚",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "unsafe-migration",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "对比 schema 定义与迁移目录差异，检出无对应迁移文件的表/列变更，以及缺少回滚（down）脚本的迁移",
+   "params": [
+    "file_glob",
+    "migration_dir"
+   ]
+  },
+  {
+   "id": "GEN-DB-002",
+   "layer": "通用·数据库",
+   "subdomain": "索引",
+   "title": "索引缺失：高频过滤/连接/排序列无索引支撑",
+   "verification": "A",
+   "severity_default": "high",
+   "defect_class": "missing-index",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "消融实验：选取高频查询在无索引基线上采集执行计划与耗时，再对候选列建索引复测，前后对比确认收益",
+   "params": [
+    "file_glob",
+    "candidate_queries"
+   ]
+  },
+  {
+   "id": "GEN-DB-003",
+   "layer": "通用·数据库",
+   "subdomain": "事务边界",
+   "title": "事务边界缺失：多步写操作未包裹在同一事务内",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "missing-transaction",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出同一业务路径内连续多次写调用（insert/update/delete）未处于同一事务/repository 单元内",
+   "params": [
+    "file_glob",
+    "write_api_patterns"
+   ]
+  },
+  {
+   "id": "GEN-DB-004",
+   "layer": "通用·数据库",
+   "subdomain": "连接管理",
+   "title": "连接未释放：连接/游标在异常路径缺少关闭",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "connection-leak",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "路径分析：连接/游标获取点是否在所有出口（含异常路径）被释放，是否使用连接池且归还路径完整",
+   "params": [
+    "file_glob",
+    "connection_api_patterns"
+   ]
+  },
+  {
+   "id": "GEN-FE-001",
+   "layer": "通用·前端",
+   "subdomain": "状态管理",
+   "title": "状态多副本：同一数据在前端多处持有且同步逻辑缺失",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "duplicated-state",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：同一业务实体在 store/组件本地/URL 参数多处存副本，检查是否存在显式同步或单一数据源约定",
+   "params": [
+    "file_glob",
+    "state_manager_patterns"
+   ]
+  },
+  {
+   "id": "GEN-FE-002",
+   "layer": "通用·前端",
+   "subdomain": "渲染性能",
+   "title": "渲染性能：长列表无虚拟化或缺少稳定 key",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "render-performance",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "模板/AST 检出列表渲染未提供稳定 key、索引 key、以及无虚拟化的大数据源循环渲染",
+   "params": [
+    "file_glob",
+    "list_render_patterns"
+   ]
+  },
+  {
+   "id": "GEN-FE-003",
+   "layer": "通用·前端",
+   "subdomain": "可访问性",
+   "title": "可访问性缺失：交互元素无语义标签、键盘不可达",
+   "verification": "S",
+   "severity_default": "low",
+   "defect_class": "a11y-missing",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "静态检查交互标签（button/a/input 替代物）是否具备可访问名（文本/aria-label）、是否可键盘聚焦与操作",
+   "params": [
+    "file_glob",
+    "interactive_tags"
+   ]
+  },
+  {
+   "id": "GEN-FE-004",
+   "layer": "通用·前端",
+   "subdomain": "防线边界",
+   "title": "防线错位：仅靠前端校验承担输入合法性防线",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "frontend-only-validation",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：前端存在校验规则而同源后端入口未见对应校验/约束，需跨端对照并确认信任模型设计",
+   "params": [
+    "file_glob",
+    "server_entry_glob"
+   ]
+  },
+  {
+   "id": "GEN-API-001",
+   "layer": "通用·API",
+   "subdomain": "schema",
+   "title": "入参未校验：处理器直接使用请求字段无 schema 校验",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "missing-schema-validation",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出请求处理器直接读取 body/query/path 字段进入业务逻辑，且该路由无共享校验中间件或 schema 声明",
+   "params": [
+    "file_glob",
+    "handler_glob"
+   ]
+  },
+  {
+   "id": "GEN-API-002",
+   "layer": "通用·API",
+   "subdomain": "版本化",
+   "title": "版本策略缺失：破坏性变更无版本化与兼容约定",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "no-api-versioning",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：比对接口签名/字段历史变更与路由版本前缀，判断破坏性变更是否有版本或兼容层承载",
+   "params": [
+    "file_glob",
+    "api_spec_glob"
+   ]
+  },
+  {
+   "id": "GEN-API-003",
+   "layer": "通用·API",
+   "subdomain": "错误码",
+   "title": "错误响应不一致：无机器可读错误码或结构各异",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "inconsistent-error-code",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "聚类各错误响应构造点：结构/字段名/错误码体系不一致，或缺失稳定机器可读码仅有自由文本",
+   "params": [
+    "file_glob",
+    "error_response_patterns"
+   ]
+  },
+  {
+   "id": "GEN-DEP-001",
+   "layer": "通用·依赖",
+   "subdomain": "锁定",
+   "title": "依赖未锁定：无 lockfile 或 lockfile 被忽略/未入库",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "missing-lockfile",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出项目有依赖声明但无 lockfile，或 lockfile 被 .gitignore 排除、未纳入版本控制",
+   "params": [
+    "file_glob",
+    "manifest_glob"
+   ]
+  },
+  {
+   "id": "GEN-DEP-002",
+   "layer": "通用·依赖",
+   "subdomain": "版本冲突",
+   "title": "版本冲突：同一依赖多版本并存或约束相互矛盾",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "version-conflict",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "解析依赖树/lockfile，检出同一包存在多个不相容版本节点或声明区间无交集",
+   "params": [
+    "file_glob",
+    "lockfile_glob"
+   ]
+  },
+  {
+   "id": "GEN-DEP-003",
+   "layer": "通用·依赖",
+   "subdomain": "维护状态",
+   "title": "依赖失维护：关键依赖已废弃或长期无更新",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "unmaintained-dependency",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：结合注册表元数据（最后发布、废弃标记、替代建议）与项目引用深度，判断关键依赖是否失维护",
+   "params": [
+    "file_glob",
+    "registry_lookup"
+   ]
+  },
+  {
+   "id": "GEN-CI-001",
+   "layer": "通用·CI/CD",
+   "subdomain": "构建可复现",
+   "title": "构建不可复现：流水线拉取浮动版本或依赖缓存不确定",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "non-reproducible-build",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出 CI 配置中基础镜像用 latest、工具版本浮动、依赖安装未走锁定文件等不确定来源",
+   "params": [
+    "file_glob",
+    "ci_config_glob"
+   ]
+  },
+  {
+   "id": "GEN-CI-002",
+   "layer": "通用·CI/CD",
+   "subdomain": "密钥处理",
+   "title": "CI 密钥暴露：密钥明文写入配置、脚本或日志输出",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "ci-secret-exposure",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "扫描流水线配置与脚本中的明文凭据、echo 打印密钥的步骤、以及未走密钥管理/掩码机制的环境变量注入",
+   "params": [
+    "file_glob",
+    "ci_config_glob"
+   ]
+  },
+  {
+   "id": "GEN-CI-003",
+   "layer": "通用·CI/CD",
+   "subdomain": "回滚路径",
+   "title": "回滚缺失：发布流程无版本回退或回滚未演练",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "no-rollback-path",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：部署配置与发布脚本中是否存在版本化回退入口、上一版本保留策略；无演练记录的自动回滚视为未验证",
+   "params": [
+    "file_glob",
+    "deploy_config_glob"
+   ]
+  },
+  {
+   "id": "GEN-CFG-001",
+   "layer": "通用·配置",
+   "subdomain": "默认值安全",
+   "title": "不安全默认值：debug 默认开启、弱默认口令或宽松跨域",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "unsafe-default",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出配置默认值：调试开关默认开启、示例默认凭据、默认通配跨域/监听地址，且无生产覆盖强制",
+   "params": [
+    "file_glob",
+    "config_glob"
+   ]
+  },
+  {
+   "id": "GEN-CFG-002",
+   "layer": "通用·配置",
+   "subdomain": "env 模板完整性",
+   "title": "env 模板漂移：代码读取的配置键与 .env.example 不一致",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "env-template-drift",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "提取代码中读取的全部配置键集合，与 .env.example/文档模板键集合做双向差集",
+   "params": [
+    "file_glob",
+    "env_template_glob"
+   ]
+  },
+  {
+   "id": "GEN-CFG-003",
+   "layer": "通用·配置",
+   "subdomain": "环境漂移",
+   "title": "环境漂移：多环境配置差异无记录、无单一事实源",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "config-drift",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：对比多环境配置文件键级差异并检索其记录/纳管方式；确认实际运行环境差异需访问线上配置",
+   "params": [
+    "file_glob",
+    "env_file_glob"
+   ]
+  },
+  {
+   "id": "GEN-LOG-001",
+   "layer": "通用·日志",
+   "subdomain": "敏感信息",
+   "title": "日志泄漏凭据：token/密码/密钥进入日志输出",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "sensitive-data-in-logs",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出日志语句参数含凭据字段（password/token/secret/authorization），或整对象序列化输出未做脱敏",
+   "params": [
+    "file_glob",
+    "sensitive_field_names"
+   ]
+  },
+  {
+   "id": "GEN-LOG-002",
+   "layer": "通用·日志",
+   "subdomain": "PII",
+   "title": "日志含 PII：手机号/证件号/邮箱等个人数据未脱敏",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "pii-in-logs",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出日志/追踪语句输出个人数据字段，且无掩码/哈希处理",
+   "params": [
+    "file_glob",
+    "pii_field_names"
+   ]
+  },
+  {
+   "id": "GEN-LOG-003",
+   "layer": "通用·日志",
+   "subdomain": "级别",
+   "title": "级别滥用：统一 info/print 输出，无级别分层与采样",
+   "verification": "S",
+   "severity_default": "low",
+   "defect_class": "log-level-misuse",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "统计日志调用级别分布与 print 直写：错误用 info、调试用 warn、无级别区分即命中",
+   "params": [
+    "file_glob",
+    "log_call_patterns"
+   ]
+  },
+  {
+   "id": "GEN-CONC-001",
+   "layer": "通用·并发",
+   "subdomain": "竞态",
+   "title": "竞态条件：共享可变状态在并发路径无同步保护",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "race-condition",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "实验设计：对共享状态访问路径施加并发压力，启用竞态检测器（并发 sanitizer/带锁分析），复现数据竞争或计数错乱即确认",
+   "params": [
+    "file_glob",
+    "concurrency_level"
+   ]
+  },
+  {
+   "id": "GEN-CONC-002",
+   "layer": "通用·并发",
+   "subdomain": "async 正确性",
+   "title": "遗漏 await：异步调用未等待，异常与执行顺序失控",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "floating-promise",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "静态检出调用返回 Promise/协程对象却未 await、未返回、未挂错误处理的悬挂调用点",
+   "params": [
+    "file_glob",
+    "async_call_patterns"
+   ]
+  },
+  {
+   "id": "GEN-CONC-003",
+   "layer": "通用·并发",
+   "subdomain": "幂等重试",
+   "title": "重试非幂等：写操作在重试范围内产生重复副作用",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "non-idempotent-retry",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "实验设计：对写路径注入可恢复失败使重试发生，观察是否产生重复记录/重复扣减；结合是否具备幂等键与去重检查判定",
+   "params": [
+    "file_glob",
+    "retry_scope"
+   ]
+  },
+  {
+   "id": "GEN-REL-001",
+   "layer": "通用·可靠性",
+   "subdomain": "超时",
+   "title": "超时缺失：外部调用/网络客户端未设置超时",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "missing-timeout",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出 HTTP/DB/队列客户端构造与调用未显式设置连接与读取超时（依赖框架无默认超时）",
+   "params": [
+    "file_glob",
+    "client_constructor_patterns"
+   ]
+  },
+  {
+   "id": "GEN-REL-002",
+   "layer": "通用·可靠性",
+   "subdomain": "重试",
+   "title": "重试失当：无重试或无限重试且无退避与抖动",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "retry-misconfig",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出可恢复的外部调用无重试包装，或重试策略无最大次数/无指数退避/无抖动",
+   "params": [
+    "file_glob",
+    "retry_wrapper_patterns"
+   ]
+  },
+  {
+   "id": "GEN-REL-003",
+   "layer": "通用·可靠性",
+   "subdomain": "降级",
+   "title": "降级缺失：依赖失败直接放大为整体不可用",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "no-graceful-degradation",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：沿关键依赖失败路径推断传播方向，检查是否存在缓存兜底/默认值/功能开关等降级分支",
+   "params": [
+    "file_glob",
+    "dependency_call_graph"
+   ]
+  },
+  {
+   "id": "GEN-REL-004",
+   "layer": "通用·可靠性",
+   "subdomain": "资源释放",
+   "title": "资源泄漏：文件/句柄/锁在异常路径未释放",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "resource-leak",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出文件/句柄/锁获取后无对应释放结构（finally/with/defer/close），异常路径下必然泄漏",
+   "params": [
+    "file_glob",
+    "open_api_patterns"
+   ]
+  },
+  {
+   "id": "GEN-BIZ-001",
+   "layer": "通用·业务",
+   "subdomain": "边界条件",
+   "title": "边界未覆盖：空集、零值、极值与超长输入处理缺失",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "boundary-condition",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：核查关键分支对空集合/零/负数/上限/超长的处理与规格定义是否一致，缺规格时按不变量推断",
+   "params": [
+    "file_glob",
+    "branch_conditions"
+   ]
+  },
+  {
+   "id": "GEN-BIZ-002",
+   "layer": "通用·业务",
+   "subdomain": "金额精度",
+   "title": "金额用浮点：货币以 float 计算或舍入规则不一致",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "float-money",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出金额/汇率字段使用浮点类型或装箱浮点运算、多处方用不同舍入模式，未走定点/最小货币单位",
+   "params": [
+    "file_glob",
+    "money_field_patterns"
+   ]
+  },
+  {
+   "id": "GEN-BIZ-003",
+   "layer": "通用·业务",
+   "subdomain": "状态机完备",
+   "title": "状态机不完备：非法状态迁移可达、迁移未穷举",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "incomplete-state-machine",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：从状态枚举与迁移代码重建迁移表，检查是否有终态/非法迁移的守卫，缺规格的迁移按业务语义推断",
+   "params": [
+    "file_glob",
+    "state_enum_sources"
+   ]
+  },
+  {
+   "id": "GEN-DOC-001",
+   "layer": "通用·文档",
+   "subdomain": "README 可跑通",
+   "title": "README 失真：快速开始步骤照做无法跑通或已过期",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "stale-readme",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "实验设计：在干净环境按 README 步骤逐步执行，记录首个失败步骤与文档偏差",
+   "params": [
+    "file_glob",
+    "readme_glob"
+   ]
+  },
+  {
+   "id": "GEN-DOC-002",
+   "layer": "通用·文档",
+   "subdomain": "接口文档同步",
+   "title": "接口文档漂移：文档路由/字段与实现不一致",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "api-doc-drift",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "对比接口文档（或 OpenAPI 规格）中的路由/参数/字段与代码注册的路由与 DTO 定义",
+   "params": [
+    "file_glob",
+    "api_doc_glob"
+   ]
+  },
+  {
+   "id": "GEN-DOC-003",
+   "layer": "通用·文档",
+   "subdomain": "决策记录",
+   "title": "决策无记录：关键取舍（选型/约定）无 ADR 或注释沉淀",
+   "verification": "U",
+   "severity_default": "low",
+   "defect_class": "missing-adr",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：定位影响面大的非常规设计（自研轮子、绕开标准库、特殊约定），检索是否有 ADR/注释解释其取舍",
+   "params": [
+    "file_glob",
+    "adr_dir"
+   ]
+  },
+  {
+   "id": "GEN-COLLAB-001",
+   "layer": "通用·协作",
+   "subdomain": "提交规范",
+   "title": "提交不规范：信息无意义或单提交混杂无关变更",
+   "verification": "S",
+   "severity_default": "low",
+   "defect_class": "poor-commit-hygiene",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "统计提交信息模式（无意义信息/全改动一锅）与单提交文件数、跨模块混合度分布",
+   "params": [
+    "file_glob",
+    "commit_range"
+   ]
+  },
+  {
+   "id": "GEN-COLLAB-002",
+   "layer": "通用·协作",
+   "subdomain": "分支策略",
+   "title": "分支无保护：主干直接推送、无评审门禁",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "missing-branch-protection",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检查主干分支保护配置（是否禁止直推、是否要求状态检查）与历史中直推/强推记录",
+   "params": [
+    "file_glob",
+    "default_branch"
+   ]
+  },
+  {
+   "id": "GEN-COLLAB-003",
+   "layer": "通用·协作",
+   "subdomain": "评审记录",
+   "title": "评审缺失：变更合并无评审痕迹与讨论记录",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "missing-review",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检查合并记录是否关联评审请求与批准痕迹，统计无评审直接合并的比例",
+   "params": [
+    "file_glob",
+    "merge_window"
+   ]
+  },
+  {
+   "id": "GEN-I18N-001",
+   "layer": "通用·i18n",
+   "subdomain": "硬编码文案",
+   "title": "文案硬编码：用户可见字符串散落代码未入资源文件",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "hardcoded-string",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出面向用户的字符串字面量（提示/标签/错误文案）未引用 i18n 资源键",
+   "params": [
+    "file_glob",
+    "ui_string_glob"
+   ]
+  },
+  {
+   "id": "GEN-I18N-002",
+   "layer": "通用·i18n",
+   "subdomain": "时区",
+   "title": "时区混用：本地时间与 UTC 混存、无时区标注",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "timezone-misuse",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出本地时间 API 直接用于存储/比较、无时区信息的时间戳、跨时区格式化未显式指定时区",
+   "params": [
+    "file_glob",
+    "time_api_patterns"
+   ]
+  },
+  {
+   "id": "GEN-I18N-003",
+   "layer": "通用·i18n",
+   "subdomain": "编码",
+   "title": "编码未指定：文件/流读写未显式指定字符集",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "encoding-issue",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出文件/网络流读写 API 未显式指定编码，或混用非 UTF-8 编码且无转换",
+   "params": [
+    "file_glob",
+    "io_api_patterns"
+   ]
+  },
+  {
+   "id": "GEN-COMPL-001",
+   "layer": "通用·合规",
+   "subdomain": "数据留存",
+   "title": "留存无策略：用户数据无删除路径与保留期限定义",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "no-data-retention",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：从数据模型与接口集合寻找用户数据的删除/导出/过期清理路径，缺失即推断无留存策略",
+   "params": [
+    "file_glob",
+    "user_data_entities"
+   ]
+  },
+  {
+   "id": "GEN-COMPL-002",
+   "layer": "通用·合规",
+   "subdomain": "隐私",
+   "title": "未声明 PII：个人数据字段被采集存储且未标注用途",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "undeclared-pii",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出模型/表/接口中的 PII 类字段（证件号/手机号/邮箱/地址），对照是否有隐私声明与处理说明",
+   "params": [
+    "file_glob",
+    "pii_field_names"
+   ]
+  },
+  {
+   "id": "GEN-COMPL-003",
+   "layer": "通用·合规",
+   "subdomain": "许可声明",
+   "title": "许可缺失：无 LICENSE 与第三方依赖许可清单",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "missing-license-notice",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检查仓库根 LICENSE/NOTICE 存在性与依赖许可扫描产物，标记不兼容许可证（如传染性许可混入闭源分发）",
+   "params": [
+    "file_glob",
+    "license_glob"
+   ]
+  },
+  {
+   "id": "GEN-COST-001",
+   "layer": "通用·成本",
+   "subdomain": "资源用量",
+   "title": "资源超配：实例/存储规格与负载严重不匹配无依据",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "overprovisioned-resource",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：对比基础设施声明的规格与预期/历史负载量级，缺乏容量依据的显著超配即命中",
+   "params": [
+    "file_glob",
+    "infra_config_glob"
+   ]
+  },
+  {
+   "id": "GEN-COST-002",
+   "layer": "通用·成本",
+   "subdomain": "浪费路径",
+   "title": "浪费路径：空转轮询、无变化全量重算等持续无效消耗",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "wasteful-polling",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "检出固定间隔轮询无变化检测/条件退出、定时全量重算无增量与缓存、空闲常驻高耗操作",
+   "params": [
+    "file_glob",
+    "polling_patterns"
+   ]
+  },
+  {
+   "id": "GEN-COST-003",
+   "layer": "通用·成本",
+   "subdomain": "预算监控",
+   "title": "成本无监控：无用量告警、无预算上限约束",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "missing-cost-alert",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：检索告警/配额配置，确认关键资源（计算/存储/第三方调用）是否存在用量阈值与预算约束",
+   "params": [
+    "file_glob",
+    "alert_config_glob"
+   ]
+  },
+  {
+   "id": "GEN-SEC-001",
+   "layer": "通用·安全",
+   "subdomain": "安全边界划分",
+   "title": "安全边界不清：安全控制点分散重复、无统一收口",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "scattered-security-controls",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：盘点校验/鉴权/审计控制点的分布，检查是否统一在边界层收口；分散补丁式控制需结合设计意图判断",
+   "params": [
+    "file_glob",
+    "security_control_patterns"
+   ]
+  },
+  {
+   "id": "GEN-SEC-002",
+   "layer": "通用·安全",
+   "subdomain": "信任边界",
+   "title": "信任边界失守：跨进程/网络边界数据未重新校验",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "trust-boundary-validation",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "推断依据：先确定信任边界位置（网络入口/服务间/进程间），再检查跨边界数据是否在边界处重新校验而非默认可信",
+   "params": [
+    "file_glob",
+    "boundary_crossing_points"
+   ]
+  },
+  {
+   "id": "GEN-SEC-003",
+   "layer": "通用·安全",
+   "subdomain": "权限模型",
+   "title": "权限默认放行：受保护端点未挂授权检查或默认允许",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "default-allow-authorization",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "枚举路由注册与授权钩子/装饰器/中间件挂载，检出未见授权检查的受保护端点及默认放行配置",
+   "params": [
+    "file_glob",
+    "route_glob",
+    "auth_hook_patterns"
+   ],
+   "cwe_map": [
+    "cwe-284"
+   ]
+  },
+  {
+   "id": "GEN-SEC-004",
+   "layer": "通用·安全",
+   "subdomain": "密钥生命周期",
+   "title": "密钥管理失控：密钥硬编码或入库、无轮换与分级",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "secret-lifecycle-mismanaged",
+   "source": "重建：八轮骨架＋领域通用失效模式",
+   "status": "active",
+   "probe": "扫描代码与数据文件中的密钥模式与敏感文件入库；轮换/分级缺失以密钥管理机制与记录检索作补充推断",
+   "params": [
+    "file_glob",
+    "secret_patterns"
+   ]
+  },
+  {
+   "id": "AIG-CORR-001",
+   "layer": "AIG·正确性",
+   "subdomain": "边缘路径",
+   "title": "空集合输入未处理导致崩溃",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "missing-edge-case",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "AST：收集无下界保护的索引/切片/除运算，逐一列位置",
+   "params": [
+    "file_glob"
+   ]
+  },
+  {
+   "id": "AIG-CORR-002",
+   "layer": "AIG·正确性",
+   "subdomain": "静默修改",
+   "title": "静默修改未声明：写操作无返回值提示、无日志、文档未注明",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "silent-mutation",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "AST：比对函数体内写操作集合与返回值、注释及文档声明，列出全部未声明的写点",
+   "params": [
+    "file_glob",
+    "ast_query=mutating-call"
+   ]
+  },
+  {
+   "id": "AIG-CORR-003",
+   "layer": "AIG·正确性",
+   "subdomain": "异步语义",
+   "title": "async 误用：未 await 或并发写共享状态，导致竞态与顺序错误",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "async-misuse",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "以并发或乱序调度运行目标路径，比对结果与串行预期，记录未落地的 Promise 与竞态写点",
+   "params": [
+    "file_glob",
+    "runtime_entry"
+   ]
+  },
+  {
+   "id": "AIG-CORR-004",
+   "layer": "AIG·正确性",
+   "subdomain": "边界假设",
+   "title": "按臆造的边界条件处理输入（假定非空、有序、唯一或在上限内）",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "hallucinated-boundary",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "以违反代码未声明假设的最小输入运行，记录崩溃或错算位置",
+   "params": [
+    "file_glob",
+    "edge_input_spec"
+   ],
+   "cwe_map": [
+    "cwe-476"
+   ]
+  },
+  {
+   "id": "AIG-CORR-005",
+   "layer": "AIG·正确性",
+   "subdomain": "分页切片",
+   "title": "分页与切片语义错误（闭开区间、0/1 基、limit 与总数换算）",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "off-by-one",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "以首尾页、空页与超界参数运行，比对返回条数与边界元素",
+   "params": [
+    "file_glob",
+    "page_spec"
+   ]
+  },
+  {
+   "id": "AIG-HALL-001",
+   "layer": "AIG·幻觉 API",
+   "subdomain": "函数调用",
+   "title": "调用不存在的库函数或方法",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "hallucinated-api",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "静态解析导入清单，将每个被调符号与目标包实际导出（类型声明或符号表）逐一对账",
+   "params": [
+    "file_glob",
+    "import_manifest"
+   ]
+  },
+  {
+   "id": "AIG-HALL-002",
+   "layer": "AIG·幻觉 API",
+   "subdomain": "参数签名",
+   "title": "传入不存在的参数名或臆造的调用签名",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "hallucinated-parameter",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "将具名实参与目标函数的签名与类型定义逐参对账，列出无对应形参的调用点",
+   "params": [
+    "file_glob",
+    "signature_source"
+   ]
+  },
+  {
+   "id": "AIG-HALL-003",
+   "layer": "AIG·幻觉 API",
+   "subdomain": "废弃 API",
+   "title": "使用已废弃或已移除的 API",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "deprecated-api",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "开启弃用告警跑通主路径，收集告警并与官方替代项清单核对",
+   "params": [
+    "file_glob",
+    "entry_point"
+   ]
+  },
+  {
+   "id": "AIG-HALL-004",
+   "layer": "AIG·幻觉 API",
+   "subdomain": "配置项",
+   "title": "编造配置文件里不存在的键",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "hallucinated-config",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "将配置文件的键与目标库自带 schema 或默认配置模板逐键比对，未知键全部列出待核",
+   "params": [
+    "file_glob",
+    "config_schema"
+   ]
+  },
+  {
+   "id": "AIG-DEFE-001",
+   "layer": "AIG·防御缺失",
+   "subdomain": "输入校验",
+   "title": "外部输入未校验直接进入敏感用点",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "missing-input-validation",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "数据流：从请求、文件、环境与命令行入口追踪到查询、路径、命令、反序列化用点，标出无校验分支",
+   "params": [
+    "file_glob",
+    "taint_sources"
+   ],
+   "cwe_map": [
+    "cwe-20"
+   ]
+  },
+  {
+   "id": "AIG-DEFE-002",
+   "layer": "AIG·防御缺失",
+   "subdomain": "错误处理",
+   "title": "外部调用无错误处理，或空 catch 吞掉异常",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "missing-error-handling",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "AST 收集 IO、网络与解析调用点，标记未包裹异常处理、未检查错误返回、未捕获拒绝的位置及空 catch 块",
+   "params": [
+    "file_glob",
+    "external_call_set"
+   ]
+  },
+  {
+   "id": "AIG-DEFE-003",
+   "layer": "AIG·防御缺失",
+   "subdomain": "资源释放",
+   "title": "资源在异常路径未释放（句柄、连接、文件、锁）",
+   "verification": "A",
+   "severity_default": "high",
+   "defect_class": "resource-leak",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "消融正常路径：在获取与释放之间注入异常后运行，统计句柄、连接与锁是否归还",
+   "params": [
+    "file_glob",
+    "fault_injection_point"
+   ]
+  },
+  {
+   "id": "AIG-DEFE-004",
+   "layer": "AIG·防御缺失",
+   "subdomain": "失败假设",
+   "title": "假设网络与外部依赖永远成功（无超时、无重试、无降级）",
+   "verification": "A",
+   "severity_default": "high",
+   "defect_class": "success-assumption",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "消融依赖：将客户端替换为必失败桩后运行主路径，检查是否存在超时、重试与降级分支",
+   "params": [
+    "file_glob",
+    "stub_target"
+   ]
+  },
+  {
+   "id": "AIG-SEC-001",
+   "layer": "AIG·安全幻觉",
+   "subdomain": "自创密码学",
+   "title": "幻觉加密算法或自写认证：手写密码学原语、编码冒充加密、自解析令牌",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-hallucinated-crypto",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "检索加解密与签名校验是否只调用成熟库原语，标记手写轮换、异或、无密钥编码与自解析令牌的实现",
+   "params": [
+    "file_glob",
+    "crypto_call_patterns"
+   ]
+  },
+  {
+   "id": "AIG-SEC-002",
+   "layer": "AIG·安全幻觉",
+   "subdomain": "不安全默认",
+   "title": "出厂默认不安全：默认凭据、调试或详细错误开启、宽松跨域与权限",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-insecure-default",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "扫描默认配置值与调试、跨域、权限开关，标记未显式收紧的出厂默认项",
+   "params": [
+    "file_glob",
+    "config_defaults"
+   ]
+  },
+  {
+   "id": "AIG-SEC-003",
+   "layer": "AIG·安全幻觉",
+   "subdomain": "示例密钥",
+   "title": "文档或示例中的密钥被用于非测试路径",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "example-key-in-production",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "定位密钥类常量的全部使用点，标记出现在非测试、非示例路径的引用（只输出路径与变量名，不记录值）",
+   "params": [
+    "file_glob",
+    "usage_paths"
+   ]
+  },
+  {
+   "id": "AIG-SEC-004",
+   "layer": "AIG·安全幻觉",
+   "subdomain": "注释信任",
+   "title": "信任注释声称的安全（注释写已校验、已加密，但代码无对应实现）",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "unverified-security-claim",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "提取已校验、已加密、已过滤类注释并列出其相邻代码的防护调用，无对应实现者标为候选（真伪需人工或模型推断）",
+   "params": [
+    "file_glob",
+    "comment_patterns"
+   ]
+  },
+  {
+   "id": "AIG-DRIFT-001",
+   "layer": "AIG·重复漂移",
+   "subdomain": "重复实现",
+   "title": "同一功能存在多处实现且已出现行为差异",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "duplicated-logic",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "克隆检测找出同语义函数簇，用同一输入分别运行并比对输出差异",
+   "params": [
+    "file_glob",
+    "clone_threshold"
+   ]
+  },
+  {
+   "id": "AIG-DRIFT-002",
+   "layer": "AIG·重复漂移",
+   "subdomain": "复制演化",
+   "title": "复制粘贴后一处被修改、另一处未同步",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "copy-paste-drift",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "令牌级克隆比对，列出高相似但不一致的分支、常量与参数对",
+   "params": [
+    "file_glob",
+    "clone_threshold"
+   ]
+  },
+  {
+   "id": "AIG-DRIFT-003",
+   "layer": "AIG·重复漂移",
+   "subdomain": "影子实现",
+   "title": "新旧实现并存且同时可达，旧实现未删除或仍被间接调用",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "shadow-implementation",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "静态调用图列出同语义函数簇的全部可达调用点，标记并存路径",
+   "params": [
+    "file_glob",
+    "call_graph"
+   ]
+  },
+  {
+   "id": "AIG-DRIFT-004",
+   "layer": "AIG·重复漂移",
+   "subdomain": "常量重复",
+   "title": "同名常量、枚举或默认值在多处定义且取值漂移",
+   "verification": "S",
+   "severity_default": "low",
+   "defect_class": "constant-divergence",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "检索同名常量、枚举与默认值定义，标记取值不一致的位置",
+   "params": [
+    "file_glob",
+    "const_name_pattern"
+   ]
+  },
+  {
+   "id": "AIG-DEP-001",
+   "layer": "AIG·依赖失控",
+   "subdomain": "未声明依赖",
+   "title": "代码导入未在任何依赖清单中声明的包",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "undeclared-dependency",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "解析全部导入名并与清单与锁文件的依赖集合做差集",
+   "params": [
+    "file_glob",
+    "manifest_path"
+   ]
+  },
+  {
+   "id": "AIG-DEP-002",
+   "layer": "AIG·依赖失控",
+   "subdomain": "版本矛盾",
+   "title": "清单与锁文件、或多份清单之间的版本约束互相矛盾",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "version-conflict",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "逐包比对清单约束与锁文件实际解析版本，列出不满足约束的条目",
+   "params": [
+    "file_glob",
+    "lockfile_path"
+   ]
+  },
+  {
+   "id": "AIG-DEP-003",
+   "layer": "AIG·依赖失控",
+   "subdomain": "过重依赖",
+   "title": "为少量用途引入体积或传递依赖庞大的包",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "heavyweight-dependency",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "统计每个直接依赖的调用点数与其传递依赖数量，列少调用高重量的候选",
+   "params": [
+    "file_glob",
+    "usage_count_threshold"
+   ]
+  },
+  {
+   "id": "AIG-DEP-004",
+   "layer": "AIG·依赖失控",
+   "subdomain": "仿冒依赖",
+   "title": "依赖名与知名包近似（typosquatting 风险）",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "typosquatting-risk",
+   "source": "重建：八轮骨架（A1-A6 层，轮4细分浮现）",
+   "status": "active",
+   "probe": "将依赖名与流行包名清单做编辑距离比对，标记近似且来源非官方注册表的条目",
+   "params": [
+    "file_glob",
+    "popular_package_list"
+   ]
+  },
+  {
+   "id": "PER-MAINT-001",
+   "layer": "PER·可维护",
+   "subdomain": "文档",
+   "title": "无 README 或关键说明过时，照做无法复现",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "missing-or-stale-docs",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "先查 README 与关键说明是否存在，存在则在干净环境逐字执行其步骤并记录首个失败点",
+   "params": [
+    "file_glob",
+    "doc_entry"
+   ]
+  },
+  {
+   "id": "PER-MAINT-002",
+   "layer": "PER·可维护",
+   "subdomain": "脚本",
+   "title": "一次性脚本散落且无使用说明与参数校验",
+   "verification": "S",
+   "severity_default": "low",
+   "defect_class": "throwaway-script",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "检索位于临时目录或命名含 tmp、副本、日期后缀的脚本，检查是否含用途说明、参数校验与复用入口",
+   "params": [
+    "file_glob",
+    "naming_pattern"
+   ]
+  },
+  {
+   "id": "PER-MAINT-003",
+   "layer": "PER·可维护",
+   "subdomain": "约定",
+   "title": "无注释与风格约定（缺 linter、formatter 与文件头说明）",
+   "verification": "S",
+   "severity_default": "low",
+   "defect_class": "missing-conventions",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "检查仓库是否缺 linter、formatter 与编辑器配置及约定说明，并统计无文件头说明的源码占比",
+   "params": [
+    "file_glob",
+    "config_presence"
+   ]
+  },
+  {
+   "id": "PER-REPRO-001",
+   "layer": "PER·复现",
+   "subdomain": "环境声明",
+   "title": ".env.example 缺失或与代码引用的环境变量不一致",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "incomplete-env-example",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "提取代码中全部环境变量读取名，与 .env.example 列出的键做差集",
+   "params": [
+    "file_glob",
+    "env_read_patterns"
+   ]
+  },
+  {
+   "id": "PER-REPRO-002",
+   "layer": "PER·复现",
+   "subdomain": "一键启动",
+   "title": "无一键启动脚本，或从干净环境按步骤无法走通（含未声明环境假设）",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "broken-quickstart",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "在干净环境执行安装与启动脚本直至首次可用，记录失败点与未声明的环境假设",
+   "params": [
+    "file_glob",
+    "entry_script"
+   ]
+  },
+  {
+   "id": "PER-REPRO-003",
+   "layer": "PER·复现",
+   "subdomain": "派生数据",
+   "title": "派生数据与生成物无重建脚本，或随机种子未固定",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "unreproducible-artifacts",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "检索仓库内生成物是否有对应生成脚本，检查随机与时间来源是否固定种子或声明来源",
+   "params": [
+    "file_glob",
+    "generated_patterns"
+   ]
+  },
+  {
+   "id": "PER-VER-001",
+   "layer": "PER·版本",
+   "subdomain": "版本控制",
+   "title": "无 git 历史，或提交粒度失控、缺少发布标签",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "poor-version-control",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "检查 git 元数据是否存在，统计单提交文件数与标签数，超阈值或缺标签即标记",
+   "params": [
+    "file_glob",
+    "git_metadata"
+   ]
+  },
+  {
+   "id": "PER-VER-002",
+   "layer": "PER·版本",
+   "subdomain": "大文件",
+   "title": "大体积二进制或生成物直接入库",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "large-artifact-in-repo",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "统计被跟踪文件体积分布，标记超过阈值的二进制与构建产物路径",
+   "params": [
+    "file_glob",
+    "size_threshold_mb"
+   ]
+  },
+  {
+   "id": "PER-VER-003",
+   "layer": "PER·版本",
+   "subdomain": "密钥入库",
+   "title": "仓库内存在疑似密钥或凭据文件（位置级检查）",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "secret-in-repo",
+   "source": "重建：八轮骨架（个人工程 3 层）",
+   "status": "active",
+   "probe": "按文件名与内容模式扫描密钥类文件与被跟踪的密钥常量，只输出路径、行号与类别，绝不记录内容",
+   "params": [
+    "file_glob",
+    "secret_file_patterns"
+   ]
+  },
+  {
+   "id": "LLM-PROMPT-001",
+   "layer": "LLM·prompt",
+   "subdomain": "版本管理",
+   "title": "prompt 文本内嵌于源码字符串，无独立文件与版本标识",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "prompt-versioning-absent",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检索 prompt 字符串常量与模板文件，确认是否存在独立 prompt 文件且在请求体携带模板版本或 hash",
+   "params": [
+    "prompt_path",
+    "file_glob"
+   ]
+  },
+  {
+   "id": "LLM-PROMPT-002",
+   "layer": "LLM·prompt",
+   "subdomain": "注入拼接",
+   "title": "用户输入以字符串拼接进入系统指令，无角色边界标记",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "prompt-concat-no-boundary",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：定位系统指令构造点，检查用户输入是否经分隔标记与角色分离，而非直接字符串拼接",
+   "params": [
+    "prompt_path",
+    "symbol_pattern"
+   ]
+  },
+  {
+   "id": "LLM-PROMPT-003",
+   "layer": "LLM·prompt",
+   "subdomain": "一致性",
+   "title": "同一角色提示词存在多份近似副本，改动后互相漂移",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "prompt-drift-duplicate-copies",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "推断：按角色名与文本相似度聚类全部 prompt 定义，人工判读差异是否属漂移；读码无法直接判定哪一份为现行真源",
+   "params": [
+    "file_glob",
+    "prompt_path"
+   ]
+  },
+  {
+   "id": "LLM-PROMPT-004",
+   "layer": "LLM·prompt",
+   "subdomain": "无测试",
+   "title": "prompt 变更无回归夹具与分数基线，改动影响不可检出",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "prompt-change-untested",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "推断：检查是否存在冻结输入夹具与旧版输出分数记录；无则判定该缺陷面从未被验证",
+   "params": [
+    "prompt_path",
+    "eval_set"
+   ]
+  },
+  {
+   "id": "LLM-CTX-001",
+   "layer": "LLM·上下文",
+   "subdomain": "装配路径过长",
+   "title": "上下文经多层函数逐步追加，最终生效顺序与优先级无显式声明",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "context-assembly-implicit",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：单请求打点输出最终 messages 序列，与代码宣称的优先级表逐项对照，不一致即命中",
+   "params": [
+    "entrypoint",
+    "symbol_pattern"
+   ]
+  },
+  {
+   "id": "LLM-CTX-002",
+   "layer": "LLM·上下文",
+   "subdomain": "截断静默",
+   "title": "超预算上下文被静默截断，无告警、无标记、无留痕",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "context-truncation-silent",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：构造超预算输入，检查返回体与日志中是否出现截断标记或告警；无标记即不合格",
+   "params": [
+    "entrypoint",
+    "log_config"
+   ]
+  },
+  {
+   "id": "LLM-CTX-003",
+   "layer": "LLM·上下文",
+   "subdomain": "优先级冲突",
+   "title": "系统指令、开发者指令与工具结果同级拼接，冲突时无仲裁规则",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "context-priority-conflict",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "推断：构造三类来源互相矛盾的输入，推断系统保留哪一来源；无仲裁代码即记为未定义行为",
+   "params": [
+    "prompt_path",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-CTX-004",
+   "layer": "LLM·上下文",
+   "subdomain": "浪费 token",
+   "title": "每轮重复注入全量历史与静态文档，无去重、缓存或摘要压缩",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "context-token-waste",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：固定会话连跑两轮，比对第二轮请求中重复内容占 input token 的比例",
+   "params": [
+    "entrypoint",
+    "log_config"
+   ]
+  },
+  {
+   "id": "LLM-STRUCT-001",
+   "layer": "LLM·结构化输出",
+   "subdomain": "schema 校验缺失",
+   "title": "模型返回 JSON 解析后直接使用，无 schema 或类型校验",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "output-schema-unvalidated",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：定位解析点，检查其后是否存在 jsonschema、pydantic 或手写字段校验调用",
+   "params": [
+    "schema_path",
+    "symbol_pattern"
+   ]
+  },
+  {
+   "id": "LLM-STRUCT-002",
+   "layer": "LLM·结构化输出",
+   "subdomain": "解析失败路径",
+   "title": "解析异常无重试、修复或降级分支，直接向上抛出中断链路",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "output-parse-fail-open",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查解析点异常分支是否含重试、格式修复或兜底返回值；仅抛错与打日志即命中",
+   "params": [
+    "symbol_pattern",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-STRUCT-003",
+   "layer": "LLM·结构化输出",
+   "subdomain": "半截 JSON 处理",
+   "title": "流式拼接的半截或超长 JSON 无完整性判据即提交下游",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "output-partial-json",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：中途截断流式响应，检查下游动作是否在完整性校验前被执行",
+   "params": [
+    "stream_path",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-STRUCT-004",
+   "layer": "LLM·结构化输出",
+   "subdomain": "类型越界",
+   "title": "字段类型与取值范围未校验，非法值直达业务逻辑",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "output-type-range-unchecked",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：逐个字段检查是否存在枚举、数值范围与日期合法性校验，缺失即命中",
+   "params": [
+    "schema_path",
+    "file_glob"
+   ]
+  },
+  {
+   "id": "LLM-TOOL-001",
+   "layer": "LLM·工具调用",
+   "subdomain": "错误返回处理",
+   "title": "工具返回的 error 或异常结构未检查，按成功结果解析",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "tool-error-unhandled",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查每个工具调用点是否消费 error 与 status 字段并分支处理",
+   "params": [
+    "tool_name",
+    "symbol_pattern"
+   ]
+  },
+  {
+   "id": "LLM-TOOL-002",
+   "layer": "LLM·工具调用",
+   "subdomain": "schema 漂移",
+   "title": "工具参数 schema 与实现签名不一致，无一致性校验",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "tool-schema-drift",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：对每个注册工具按 schema 生成最小调用样例执行，与实现签名逐参数比对",
+   "params": [
+    "tool_name",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-TOOL-003",
+   "layer": "LLM·工具调用",
+   "subdomain": "权限边界与工具滥用",
+   "title": "危险工具（写文件、执行命令、外发请求）无白名单或人工确认门",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-tool-privilege-unbounded-cwe-862",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：枚举危险工具调用点，检查是否存在授权校验、参数白名单或人工确认门",
+   "params": [
+    "sink_type",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-TOOL-004",
+   "layer": "LLM·工具调用",
+   "subdomain": "并行调用冲突",
+   "title": "并行工具调用共享可变状态，无锁、无幂等键、无顺序约束",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "tool-parallel-race",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：并发触发同一工具写同一资源，检查是否出现冲突、重复副作用或相互覆盖",
+   "params": [
+    "tool_name",
+    "concurrency_config"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-001",
+   "layer": "LLM·循环控制",
+   "subdomain": "终止条件",
+   "title": "完成标志依赖模型自报，无外部对账",
+   "verification": "R",
+   "severity_default": "critical",
+   "defect_class": "unbounded-agent-loop",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：构造工具反复失败场景，观察 agent 是否在步数上限内正确终止而非空转",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-002",
+   "layer": "LLM·循环控制",
+   "subdomain": "最大步数",
+   "title": "主循环无最大步数、最大时长或最大 token 硬上限",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "loop-step-cap-absent",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：定位主循环，检查是否设置步数、时长或 token 上限常量与超限退出分支",
+   "params": [
+    "entrypoint",
+    "symbol_pattern"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-003",
+   "layer": "LLM·循环控制",
+   "subdomain": "死循环烧钱",
+   "title": "工具失败重入队列不计数，同一错误无限重试",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "loop-retry-thrash",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：令工具持续返回同一错误，观察是否在重试上限内退出并留下计费与日志",
+   "params": [
+    "retry_config",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-004",
+   "layer": "LLM·循环控制",
+   "subdomain": "异常退出路径",
+   "title": "循环内异常未清理中间态，已产生的副作用不回收",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "loop-partial-state-leak",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：循环半途注入异常，检查已写文件、已提交变更、已发请求是否回滚或标记",
+   "params": [
+    "entrypoint",
+    "sink_type"
+   ]
+  },
+  {
+   "id": "LLM-LOOP-005",
+   "layer": "LLM·循环控制",
+   "subdomain": "终止实验证据",
+   "title": "未做循环终止实验，无预注册判据与实测终止记录",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "loop-termination-untested",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "推断：检查是否存在终止条件的测试用例与实验记录；缺失即记为未验证（对应必做三件事中的循环终止实验）",
+   "params": [
+    "entrypoint",
+    "file_glob"
+   ]
+  },
+  {
+   "id": "LLM-GROUND-001",
+   "layer": "LLM·幻觉接地",
+   "subdomain": "无引用断言",
+   "title": "事实性输出无引用要求，提示词未强制无据不答",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "hallucination-uncited-claim",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：抽查 N 条事实断言，逐条要求来源回溯，统计无来源断言比例",
+   "params": [
+    "prompt_path",
+    "eval_set"
+   ]
+  },
+  {
+   "id": "LLM-GROUND-002",
+   "layer": "LLM·幻觉接地",
+   "subdomain": "引文不存在的来源",
+   "title": "引用来源未做存在性校验，可能指向不存在的文件或条目",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "hallucination-fabricated-citation",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：抽取输出中的全部引用标识，机械校验被引对象是否真实存在",
+   "params": [
+    "entrypoint",
+    "eval_set"
+   ]
+  },
+  {
+   "id": "LLM-GROUND-003",
+   "layer": "LLM·幻觉接地",
+   "subdomain": "事实与检索矛盾",
+   "title": "输出与检索上下文矛盾时无冲突检测，仍采信模型陈述",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "hallucination-context-contradiction",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：注入与检索内容相反的诱导输入，检查系统是否以检索为准或显式标记冲突",
+   "params": [
+    "retrieval_config",
+    "eval_set"
+   ]
+  },
+  {
+   "id": "LLM-GROUND-004",
+   "layer": "LLM·幻觉接地",
+   "subdomain": "弃答出口",
+   "title": "知识边界外问题无弃答路径，一律给出答案",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "hallucination-no-abstention",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "推断：检查提示词与后处理是否提供不确定态出口；无出口则超边界回答无法被标记",
+   "params": [
+    "prompt_path",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-RAG-001",
+   "layer": "LLM·RAG",
+   "subdomain": "切块边界",
+   "title": "按固定字符数硬切，跨段落与代码块切断语义单元",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "rag-chunk-boundary-hardcut",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查切块配置是否使用固定长度且无结构边界与重叠参数",
+   "params": [
+    "chunker_config",
+    "index_path"
+   ]
+  },
+  {
+   "id": "LLM-RAG-002",
+   "layer": "LLM·RAG",
+   "subdomain": "召回率",
+   "title": "召回率无金集测量，仅以答案观感判断检索质量",
+   "verification": "A",
+   "severity_default": "high",
+   "defect_class": "rag-recall-unmeasured",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "消融：用金集问题测 top-k 命中率并对 k 值做消融，检查是否存在版本化召回指标",
+   "params": [
+    "eval_set",
+    "retrieval_config"
+   ]
+  },
+  {
+   "id": "LLM-RAG-003",
+   "layer": "LLM·RAG",
+   "subdomain": "重复内容",
+   "title": "去重缺失，同一内容多版本并存挤占上下文预算",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "rag-duplicate-chunks",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：统计返回块的相似度分布，检查是否存在近重复挤占上下文预算",
+   "params": [
+    "index_path",
+    "retrieval_config"
+   ]
+  },
+  {
+   "id": "LLM-RAG-004",
+   "layer": "LLM·RAG",
+   "subdomain": "陈旧索引",
+   "title": "索引与源数据无版本对账，更新后未重建仍被召回",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "rag-stale-index",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：修改源文档后立即查询，检查召回是否仍返回旧内容且无版本提示",
+   "params": [
+    "index_path",
+    "file_glob"
+   ]
+  },
+  {
+   "id": "LLM-RAG-005",
+   "layer": "LLM·RAG",
+   "subdomain": "注入经检索进入",
+   "title": "检索内容未标注为数据即进入指令位置，无来源信任分级",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "rag-untrusted-content-inline-cwe-1427",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：向索引投放含指令文本的文档，观察模型是否执行其中指令",
+   "params": [
+    "retrieval_config",
+    "prompt_path"
+   ]
+  },
+  {
+   "id": "LLM-EVAL-001",
+   "layer": "LLM·评估",
+   "subdomain": "无金集",
+   "title": "无冻结金集与评分脚本，评估靠临时样例与主观印象",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "eval-no-golden-set",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码与查目录：检查是否存在版本化金集文件与可复跑的评分脚本",
+   "params": [
+    "eval_set",
+    "file_glob"
+   ]
+  },
+  {
+   "id": "LLM-EVAL-002",
+   "layer": "LLM·评估",
+   "subdomain": "评估集泄漏",
+   "title": "评估集样本进入少样本示例或微调数据，分数虚高",
+   "verification": "A",
+   "severity_default": "high",
+   "defect_class": "eval-set-leakage",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "消融：剔除示例与训练数据中的评估集样本后重跑，比对分数落差",
+   "params": [
+    "eval_set",
+    "prompt_path"
+   ]
+  },
+  {
+   "id": "LLM-EVAL-003",
+   "layer": "LLM·评估",
+   "subdomain": "评分器与被评同源",
+   "title": "评分器与被评模型同源，共享盲区与偏见",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "eval-judge-correlated",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "推断：比对评分器与被评对象的模型族、提示族与数据来源；同源即判定相关性风险",
+   "params": [
+    "model_config",
+    "eval_set"
+   ]
+  },
+  {
+   "id": "LLM-EVAL-004",
+   "layer": "LLM·评估",
+   "subdomain": "无回归基线",
+   "title": "无版本间回归基线与阈值，改动后分数变化无法归因",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "eval-no-regression-baseline",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：同一输入在旧版与新版各跑一遍，检查是否留存差异与判级阈值",
+   "params": [
+    "eval_set",
+    "model_config"
+   ]
+  },
+  {
+   "id": "LLM-MEM-001",
+   "layer": "LLM·记忆",
+   "subdomain": "跨会话污染",
+   "title": "记忆读写无会话或用户命名空间隔离，跨用户串台",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "memory-cross-session-leak",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：两个会话先后写入同名记忆键，检查读回是否串台",
+   "params": [
+    "memory_store",
+    "session_store"
+   ]
+  },
+  {
+   "id": "LLM-MEM-002",
+   "layer": "LLM·记忆",
+   "subdomain": "记忆与事实冲突",
+   "title": "记忆条目与当前事实冲突时无优先级与时效规则",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "memory-conflict-no-precedence",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "推断：构造与现行事实相反的历史记忆，推断系统采信规则；无规则即冲突不可判",
+   "params": [
+    "memory_store",
+    "prompt_path"
+   ]
+  },
+  {
+   "id": "LLM-MEM-003",
+   "layer": "LLM·记忆",
+   "subdomain": "记忆写错难删",
+   "title": "记忆写入后无删除或更正接口，错误事实永久驻留",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "memory-immutable-wrong-fact",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查记忆存储层是否提供条目级删除与更正接口及其调用点",
+   "params": [
+    "memory_store",
+    "symbol_pattern"
+   ]
+  },
+  {
+   "id": "LLM-COST-001",
+   "layer": "LLM·成本",
+   "subdomain": "无预算上限",
+   "title": "无单次或单会话成本上限与熔断",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "cost-no-budget-cap",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查请求链路是否存在 token 或金额预算检查与超限中断分支",
+   "params": [
+    "budget_config",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-COST-002",
+   "layer": "LLM·成本",
+   "subdomain": "重试爆炸",
+   "title": "重试无退避与次数上限，失败时调用量成倍放大",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "cost-retry-explosion",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查重试配置是否含指数退避、抖动与最大次数",
+   "params": [
+    "retry_config",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-COST-003",
+   "layer": "LLM·成本",
+   "subdomain": "长上下文滥用",
+   "title": "以全量长上下文替代检索与摘要，成本随会话线性膨胀",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "cost-context-overuse",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：统计每轮 input token 与会话轮次的关系，检查是否线性增长且无压缩环节",
+   "params": [
+    "entrypoint",
+    "log_config"
+   ]
+  },
+  {
+   "id": "LLM-COST-004",
+   "layer": "LLM·成本",
+   "subdomain": "缓存失效策略",
+   "title": "缓存键不含模型与提示词版本，版本更新后命中旧结果",
+   "verification": "A",
+   "severity_default": "high",
+   "defect_class": "cost-cache-stale-key",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "消融：更新提示词版本后重跑同一输入，检查是否仍命中旧缓存",
+   "params": [
+    "cache_config",
+    "prompt_path"
+   ]
+  },
+  {
+   "id": "LLM-OBS-001",
+   "layer": "LLM·可观测",
+   "subdomain": "无 trace",
+   "title": "全链无 trace id 贯穿，跨服务日志不可拼接",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "observability-no-trace",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查请求链路是否生成并透传 trace id 至各外部调用与日志",
+   "params": [
+    "entrypoint",
+    "log_config"
+   ]
+  },
+  {
+   "id": "LLM-OBS-002",
+   "layer": "LLM·可观测",
+   "subdomain": "日志缺 prompt 版本",
+   "title": "日志未记录提示词模板版本与模型参数，判定无法回溯",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "observability-missing-prompt-version",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查日志字段是否包含模板 hash 或版本号、模型名与采样参数",
+   "params": [
+    "log_config",
+    "prompt_path"
+   ]
+  },
+  {
+   "id": "LLM-OBS-003",
+   "layer": "LLM·可观测",
+   "subdomain": "无法复现一轮",
+   "title": "未留存输入输出与工具调用序列，历史失败轮不可复现",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "observability-unreproducible-run",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：挑一轮历史失败记录，按其留存证据重放，检查能否复现同一行为",
+   "params": [
+    "trace_store",
+    "log_config"
+   ]
+  },
+  {
+   "id": "LLM-OBS-004",
+   "layer": "LLM·可观测",
+   "subdomain": "静默失败",
+   "title": "降级与兜底路径不打点，指标上不可见",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "observability-silent-fallback",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：主动触发降级分支，检查是否产生指标与日志；无任何信号即静默失败",
+   "params": [
+    "log_config",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-ROBUST-001",
+   "layer": "LLM·韧性",
+   "subdomain": "超时",
+   "title": "模型或工具调用无超时参数，单点挂起即阻塞全链",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "resilience-no-timeout",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查每个外部调用是否显式设置超时并向上传播取消",
+   "params": [
+    "timeout_config",
+    "symbol_pattern"
+   ]
+  },
+  {
+   "id": "LLM-ROBUST-002",
+   "layer": "LLM·韧性",
+   "subdomain": "API 失败降级",
+   "title": "外部 API 失败仅抛错，无备用模型或部分结果降级",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "resilience-no-fallback",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查异常分支是否包含降级路径；仅抛出与打日志即命中",
+   "params": [
+    "entrypoint",
+    "model_config"
+   ]
+  },
+  {
+   "id": "LLM-ROBUST-003",
+   "layer": "LLM·韧性",
+   "subdomain": "限流",
+   "title": "无 429 与限流退避队列，突发流量即雪崩",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "resilience-rate-limit-unhandled",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：模拟持续返回 429，检查是否退避、排队并最终恢复",
+   "params": [
+    "retry_config",
+    "api_endpoint"
+   ]
+  },
+  {
+   "id": "LLM-ROBUST-004",
+   "layer": "LLM·韧性",
+   "subdomain": "并发争用",
+   "title": "并发下共享会话、额度或文件句柄争用无隔离",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "resilience-concurrency-contention",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：并发压同一会话路径，检查共享状态是否出现覆盖或丢更新",
+   "params": [
+    "concurrency_config",
+    "session_store"
+   ]
+  },
+  {
+   "id": "LLM-ROBUST-005",
+   "layer": "LLM·韧性",
+   "subdomain": "部分失败回滚",
+   "title": "多步动作部分成功即返回，无补偿与状态标记",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "resilience-partial-failure-no-rollback",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：令多步流程中途失败，检查已完成步骤是否被补偿或标记为半完成",
+   "params": [
+    "entrypoint",
+    "sink_type"
+   ]
+  },
+  {
+   "id": "LLM-SEC-001",
+   "layer": "LLM·安全",
+   "subdomain": "提示注入·直接",
+   "title": "用户输入与指令同层拼接，无角色隔离与输入边界标记",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "security-prompt-injection-direct-cwe-1427",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：用预注册注入样例集（改写指令、索取系统提示）测试，检查是否隔离或拒绝",
+   "params": [
+    "prompt_path",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-SEC-002",
+   "layer": "LLM·安全",
+   "subdomain": "提示注入·间接（经工具/检索/文件）",
+   "title": "工具返回值、检索结果与文件内容中的指令被直接执行，无来源信任分级",
+   "verification": "R",
+   "severity_default": "critical",
+   "defect_class": "security-prompt-injection-indirect-cwe-1427",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：在工具返回值与检索文档中植入指令，观察是否被当作指令执行",
+   "params": [
+    "tool_name",
+    "retrieval_config"
+   ]
+  },
+  {
+   "id": "LLM-SEC-003",
+   "layer": "LLM·安全",
+   "subdomain": "越狱面",
+   "title": "越狱与角色扮演改写可绕过约束，无对抗测试基线",
+   "verification": "A",
+   "severity_default": "high",
+   "defect_class": "security-jailbreak-bypass-cwe-693",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "消融：对约束类目做对抗变体压测，比对无变体基线的绕过率",
+   "params": [
+    "eval_set",
+    "prompt_path"
+   ]
+  },
+  {
+   "id": "LLM-SEC-004",
+   "layer": "LLM·安全",
+   "subdomain": "数据外泄通道",
+   "title": "密钥与隐私被拼入提示词或日志，出站请求无白名单",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-data-exfiltration-channel-cwe-200",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：对密钥引用点、日志写点与出站请求点取交集，检查是否存在明文外发",
+   "params": [
+    "env_key",
+    "sink_type"
+   ]
+  },
+  {
+   "id": "LLM-SEC-005",
+   "layer": "LLM·安全",
+   "subdomain": "输出渲染 XSS 面",
+   "title": "模型输出未转义即渲染为 HTML 或富文本",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-output-render-xss-cwe-79",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：定位渲染点，检查 innerHTML、dangerouslySetInnerHTML、v-html 或未转义模板用法",
+   "params": [
+    "render_path",
+    "file_glob"
+   ]
+  },
+  {
+   "id": "LLM-LAT-001",
+   "layer": "LLM·延迟",
+   "subdomain": "串行调用可并行",
+   "title": "相互独立的模型与工具调用串行执行，无并行编排",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "latency-serial-calls",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "读码：检查独立调用是否顺序阻塞且无并发原语与批量接口",
+   "params": [
+    "entrypoint",
+    "symbol_pattern"
+   ]
+  },
+  {
+   "id": "LLM-LAT-002",
+   "layer": "LLM·延迟",
+   "subdomain": "首 token 慢",
+   "title": "首 token 延迟无预算与测量，等待期无反馈",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "latency-ttft-unmeasured",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：测量首 token 延迟分布与超时占比，检查是否设置首 token 预算与进度反馈",
+   "params": [
+    "model_config",
+    "log_config"
+   ]
+  },
+  {
+   "id": "LLM-LAT-003",
+   "layer": "LLM·延迟",
+   "subdomain": "流式工程问题",
+   "title": "流式输出的拼接、中断与取消路径缺失，半截内容未处理",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "latency-stream-interrupt",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：中途取消请求并断开连接，检查已渲染内容与状态是否一致",
+   "params": [
+    "stream_path",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-LAT-004",
+   "layer": "LLM·延迟",
+   "subdomain": "重试放大",
+   "title": "超时重试导致重复请求与放大，延迟与成本同时恶化",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "latency-retry-amplification",
+   "source": "重建：八轮骨架（L1-L14 层，含 v1.4 安全回归）",
+   "status": "active",
+   "probe": "实验：注入慢响应触发超时重试，统计实际请求倍数与端到端时延",
+   "params": [
+    "retry_config",
+    "timeout_config"
+   ]
+  },
+  {
+   "id": "SEC-001",
+   "layer": "安全散点",
+   "subdomain": "SQL 注入",
+   "title": "外部输入未参数化、以拼接方式进入 SQL 语句",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-sql-injection-cwe-89",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：从请求参数/事件字段追踪到数据库查询 API，检查是否经字符串拼接或格式化进入执行入口，而非绑定参数",
+   "params": [
+    "file_glob",
+    "source=request-param",
+    "sink=db-execute"
+   ]
+  },
+  {
+   "id": "SEC-002",
+   "layer": "安全散点",
+   "subdomain": "命令注入",
+   "title": "外部输入拼接进系统命令或 shell 执行",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-command-injection-cwe-78",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪子进程/shell 执行入口（shell 解释、os.system、exec 族）的参数是否含未转义的外部输入，检查是否已参数数组化与元字符过滤",
+   "params": [
+    "file_glob",
+    "source=request-param",
+    "sink=shell-exec"
+   ]
+  },
+  {
+   "id": "SEC-003",
+   "layer": "安全散点",
+   "subdomain": "路径遍历",
+   "title": "用户输入拼接进文件路径未校验",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-path-traversal-cwe-22",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：从入口点的字符串参数追踪到文件 API 调用，检查是否经过白名单/规范化（规范化后前缀归属校验）",
+   "params": [
+    "file_glob",
+    "sink=file-write"
+   ]
+  },
+  {
+   "id": "SEC-004",
+   "layer": "安全散点",
+   "subdomain": "不安全的反序列化",
+   "title": "对不可信数据反序列化且未限制对象构造范围",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-deserialization-cwe-502",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪 pickle 加载、非安全模式的 YAML 加载、原生对象反序列化等入口的输入来源，检查是否外部可控且无类型白名单或安全模式",
+   "params": [
+    "file_glob",
+    "source=external-payload",
+    "sink=deserialize"
+   ]
+  },
+  {
+   "id": "SEC-005",
+   "layer": "安全散点",
+   "subdomain": "XSS",
+   "title": "未转义的用户输入回显到 HTML 或前端渲染汇",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-xss-cwe-79",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：从请求/存储字段追踪到模板自动转义关闭处及前端危险渲染汇（HTML 注入型、DOM 型），检查转义策略与内容安全策略",
+   "params": [
+    "file_glob",
+    "source=request-or-stored-field",
+    "sink=html-render"
+   ]
+  },
+  {
+   "id": "SEC-006",
+   "layer": "安全散点",
+   "subdomain": "服务端模板注入 SSTI",
+   "title": "用户输入被当作模板内容参与渲染",
+   "verification": "R",
+   "severity_default": "critical",
+   "defect_class": "security-ssti-cwe-1336",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "构造验证：向模板渲染入口传入含模板求值语法的载荷，观察是否被求值；静态侧追踪模板字符串是否拼接了外部输入而非仅作为变量传参",
+   "params": [
+    "file_glob",
+    "source=request-param",
+    "sink=template-render"
+   ]
+  },
+  {
+   "id": "SEC-007",
+   "layer": "安全散点",
+   "subdomain": "XXE 外部实体注入",
+   "title": "XML 解析未禁用外部实体且输入不可信",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "security-xxe-cwe-611",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "构造验证：提交含外部实体声明的 XML，观察是否被解析、回显或触发外连；静态侧核对解析器的实体与 DTD 开关配置",
+   "params": [
+    "file_glob",
+    "source=xml-body",
+    "sink=xml-parse"
+   ]
+  },
+  {
+   "id": "SEC-008",
+   "layer": "安全散点",
+   "subdomain": "SSRF",
+   "title": "服务端按外部输入发起请求且未限制目标",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "security-ssrf-cwe-918",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "构造验证：以回环、内网与元数据服务地址作为目标参数发起请求，观察可达性差异；静态侧追踪 URL 参数到 HTTP 客户端并核对解析、重定向与协议限制",
+   "params": [
+    "file_glob",
+    "source=url-param",
+    "sink=http-client"
+   ]
+  },
+  {
+   "id": "SEC-009",
+   "layer": "安全散点",
+   "subdomain": "开放重定向",
+   "title": "跳转目标取自请求参数且未做白名单校验",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "security-open-redirect-cwe-601",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪重定向目标或 Location 赋值是否直接采用请求参数，检查是否为固定映射或相对路径白名单",
+   "params": [
+    "file_glob",
+    "source=redirect-param",
+    "sink=http-redirect"
+   ]
+  },
+  {
+   "id": "SEC-010",
+   "layer": "安全散点",
+   "subdomain": "硬编码凭据",
+   "title": "凭据类字段以字面量常量硬编码于源码或配置",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-hardcoded-credentials-cwe-798",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级扫描：定位赋值给密码、令牌、密钥、口令类命名字段的字面量常量，核对是否应由环境变量或密钥管理提供；只登记文件、行号与字段名，不登记任何取值内容",
+   "params": [
+    "file_glob",
+    "sink=config-literal"
+   ]
+  },
+  {
+   "id": "SEC-011",
+   "layer": "安全散点",
+   "subdomain": "弱加密/加密误用",
+   "title": "使用已废弃算法或误用加密模式",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-weak-crypto-cwe-327",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：枚举加密与哈希 API 调用，核对算法、工作模式、初始向量来源与密钥派生，检查是否缺少完整性认证或使用可复现的固定参数",
+   "params": [
+    "file_glob",
+    "sink=crypto-api"
+   ]
+  },
+  {
+   "id": "SEC-012",
+   "layer": "安全散点",
+   "subdomain": "不安全随机数",
+   "title": "安全用途取值来自非密码学随机源",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "security-insecure-random-cwe-338",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：定位会话标识、重置码、盐值等安全用途取值的随机源，核对是否为密码学安全生成器且种子外部不可控",
+   "params": [
+    "file_glob",
+    "sink=random-api"
+   ]
+  },
+  {
+   "id": "SEC-013",
+   "layer": "安全散点",
+   "subdomain": "认证缺失或绕过",
+   "title": "敏感入口缺少认证或认证判断可被绕过",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-auth-bypass-cwe-287",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：枚举路由与入口点，核对认证中间件的覆盖是否完整，并检查判断分支中的短路、默认放行与类型混淆路径",
+   "params": [
+    "file_glob",
+    "surface=route",
+    "sink=auth-check"
+   ],
+   "cwe_map": [
+    "cwe-287",
+    "cwe-288"
+   ]
+  },
+  {
+   "id": "SEC-014",
+   "layer": "安全散点",
+   "subdomain": "授权缺失（越权）",
+   "title": "资源操作未校验归属或权限，可横向或纵向越权",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-missing-authorization-cwe-862",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪以请求提供的对象标识进行读写的路径，核对查询与更新是否以当前主体做归属或权限过滤",
+   "params": [
+    "file_glob",
+    "source=request-object-id",
+    "sink=db-write"
+   ],
+   "cwe_map": [
+    "cwe-639",
+    "cwe-863"
+   ]
+  },
+  {
+   "id": "SEC-015",
+   "layer": "安全散点",
+   "subdomain": "会话管理缺陷",
+   "title": "会话标识生成、续期或失效处理不当",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-session-management-cwe-384",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪登录前后会话标识的生成与轮换、登出与服务端失效路径，核对会话 Cookie 属性与固定风险处置",
+   "params": [
+    "file_glob",
+    "sink=session-store"
+   ]
+  },
+  {
+   "id": "SEC-016",
+   "layer": "安全散点",
+   "subdomain": "CSRF",
+   "title": "状态变更入口缺少跨站请求伪造防护",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-csrf-cwe-352",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：枚举改变状态的方法与路由，核对防伪令牌、同站属性与来源校验的覆盖是否存在缺口及豁免过宽",
+   "params": [
+    "file_glob",
+    "surface=state-changing-route"
+   ]
+  },
+  {
+   "id": "SEC-017",
+   "layer": "安全散点",
+   "subdomain": "竞态条件 TOCTOU",
+   "title": "检查与使用之间存在可被抢占的时间窗",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "security-toctou-cwe-367",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "构造验证：并发或替换目标以抢占检查与使用之间的窗口，观察是否绕过判定；静态侧定位先检查后使用的成对调用与缺失的原子性保证",
+   "params": [
+    "file_glob",
+    "sink=check-then-use"
+   ]
+  },
+  {
+   "id": "SEC-018",
+   "layer": "安全散点",
+   "subdomain": "整数溢出",
+   "title": "算术结果未做溢出或回绕边界校验",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-integer-overflow-cwe-190",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：核对长度、计数、金额等运算的类型宽度与上下界校验，重点关注外部可控因子参与的乘法与窄化强转",
+   "params": [
+    "file_glob",
+    "sink=arithmetic-cast"
+   ]
+  },
+  {
+   "id": "SEC-019",
+   "layer": "安全散点",
+   "subdomain": "缓冲区边界",
+   "title": "内存拷贝或索引写入缺少长度边界校验",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-out-of-bounds-cwe-787",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：核对定长缓冲区的读写调用与索引来源，检查长度参数是否外部可控且未经上界校验，是否用显式长度替代有界安全接口",
+   "params": [
+    "file_glob",
+    "sink=memory-write"
+   ]
+  },
+  {
+   "id": "SEC-020",
+   "layer": "安全散点",
+   "subdomain": "敏感信息经日志/错误泄漏",
+   "title": "凭据或个人信息进入日志与错误响应路径",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-log-leakage-cwe-532",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：从敏感字段来源追踪到日志与错误响应汇，检查脱敏处理与对外错误细节暴露程度，含堆栈与调试开关",
+   "params": [
+    "file_glob",
+    "source=sensitive-field",
+    "sink=log-sink"
+   ],
+   "cwe_map": [
+    "cwe-200"
+   ]
+  },
+  {
+   "id": "SEC-021",
+   "layer": "安全散点",
+   "subdomain": "依赖组件漏洞 SCA",
+   "title": "依赖清单含已知漏洞版本且无锁定或审计",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-vulnerable-dependency-cwe-1395",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：解析依赖清单与锁文件，比对已知漏洞库并核对版本约束是否放行到受影响区间，评估实际可达调用面",
+   "params": [
+    "file_glob",
+    "sink=dependency-manifest"
+   ]
+  },
+  {
+   "id": "SEC-022",
+   "layer": "安全散点",
+   "subdomain": "供应链投毒/仿名依赖",
+   "title": "依赖名称与来源可信度未校验",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-supply-chain-cwe-1357",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：核对依赖名与官方名称的近似度、解析源是否为官方仓库、是否校验签名或完整性摘要，标记非官方源与缺失完整性校验项",
+   "params": [
+    "file_glob",
+    "sink=dependency-manifest"
+   ]
+  },
+  {
+   "id": "SEC-023",
+   "layer": "安全散点",
+   "subdomain": "CORS 配置错误",
+   "title": "跨域策略反射任意来源或与凭据组合过宽",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-cors-misconfig-cwe-942",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "位置级：枚举跨域响应头配置，核对是否回显请求来源、是否使用通配来源、是否与允许凭据组合，以及来源校验的匹配方式",
+   "params": [
+    "file_glob",
+    "sink=cors-config"
+   ]
+  },
+  {
+   "id": "SEC-024",
+   "layer": "安全散点",
+   "subdomain": "拒绝服务向量",
+   "title": "外部输入可触发无界资源消耗",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "security-dos-resource-cwe-400",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "构造验证：以超大、深层或高频输入压测无上限的读取、递归、正则与分配路径，观察资源增长与超时保护；静态侧核对限额、背压与流式处理",
+   "params": [
+    "file_glob",
+    "sink=unbounded-alloc"
+   ]
+  },
+  {
+   "id": "SEC-025",
+   "layer": "安全散点",
+   "subdomain": "文件上传处理缺陷",
+   "title": "上传文件的类型、落地路径或执行权限未做后置校验",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-file-upload-cwe-434",
+   "source": "重建：OWASP Top 10 / CWE Top 25 映射（v1.4 安全回归）",
+   "status": "active",
+   "probe": "数据流：追踪上传内容与文件名的使用路径，核对类型判定方式、落地目录是否位于可访问或可执行位置、是否重命名与限定扩展名",
+   "params": [
+    "file_glob",
+    "source=upload-body",
+    "sink=file-write"
+   ]
+  },
+  {
+   "id": "SEC-026",
+   "layer": "安全散点",
+   "subdomain": "内存安全（gated）",
+   "title": "内存安全家族：UAF/越界读写/栈堆缓冲区溢出（仅 C/C++/unsafe Rust 启用）",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-memory-safety-cwe-416-125-120-121-122",
+   "source": "重建：CWE Top25 2025 缺口补全（v0.3 有效性调查）",
+   "status": "active",
+   "probe": "gated 条目：非 C/C++/unsafe Rust 项目自动 N/A；启用时审 UAF/越界读写/缓冲区模式",
+   "params": [
+    "file_glob",
+    "gate:lang=c-cpp-rust-unsafe"
+   ]
+  },
+  {
+   "id": "SEC-027",
+   "layer": "安全散点",
+   "subdomain": "空引用解引用",
+   "title": "可空返回/可选值未判空即解引用",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "security-null-deref-cwe-476",
+   "source": "重建：CWE Top25 2025（排名 +8）缺口补全",
+   "status": "active",
+   "probe": "数据流：可空返回/可选链缺失处的解引用点清单",
+   "params": [
+    "file_glob"
+   ]
+  },
+  {
+   "id": "SEC-028",
+   "layer": "安全散点",
+   "subdomain": "代码注入",
+   "title": "eval/exec/动态导入的显式注入面",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "security-code-injection-cwe-94",
+   "source": "重建：CWE Top25 2025 缺口补全（与反序列化 SEC-004 分列）",
+   "status": "active",
+   "probe": "sinks：eval/exec/Function()/动态 import 的输入来源追踪，外部可控即缺陷",
+   "params": [
+    "file_glob",
+    "sink=eval-exec"
+   ]
+  },
+  {
+   "id": "SEC-029",
+   "layer": "安全散点",
+   "subdomain": "输入校验",
+   "title": "入口参数边界校验缺失（从 AIG-DEFE 显式化）",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "security-input-validation-cwe-20",
+   "source": "重建：CWE Top25 2025（排名 −6 仍高位）缺口补全",
+   "status": "active",
+   "probe": "入口点参数→类型/范围/长度校验缺失清单",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "SEC-030",
+   "layer": "安全散点",
+   "subdomain": "授权变体",
+   "title": "IDOR/功能级越权（用户可控键直查资源，从 SEC-014 拆出）",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-authz-variants-cwe-639-863",
+   "source": "重建：CWE Top25 2025（639 +6 / 863 在榜）缺口补全",
+   "status": "active",
+   "probe": "数据流：用户可控键直入资源查询/操作，无归属校验即缺陷",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "SEC-031",
+   "layer": "安全散点",
+   "subdomain": "幽灵包（slopsquatting）",
+   "title": "新引入包名未做 registry 存在性核验",
+   "verification": "R",
+   "severity_default": "high",
+   "defect_class": "security-slopsquatting-package-hallucination",
+   "source": "Spracklen 2024（幽灵包 5.2%/21.7%，205,474 唯一名）× v0.3 有效性调查",
+   "status": "active",
+   "probe": "实验：对全部新引入包名查 registry 存在性＋发布时间/下载量异常核验；不存在名=高危（可被抢注投毒）",
+   "params": [
+    "file_glob",
+    "dep=registry-check"
+   ]
+  },
+  {
+   "id": "LLM-POISON-001",
+   "layer": "LLM·RAG",
+   "subdomain": "索引投毒",
+   "title": "索引/知识源写入面无来源验证与干净基线（可投毒面）",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "llm-rag-poisoning",
+   "source": "OWASP LLM Top10 2025 LLM04 缺口补全（v0.3）",
+   "status": "active",
+   "probe": "推断：索引写入路径的来源验证与基线快照机制存在性审查",
+   "params": [
+    "file_glob",
+    "index_path"
+   ]
+  },
+  {
+   "id": "LLM-POISON-002",
+   "layer": "LLM·记忆",
+   "subdomain": "记忆投毒",
+   "title": "外部内容可经对话写入长期记忆且无冲突处理",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "llm-memory-poisoning",
+   "source": "OWASP LLM Top10 2025 LLM04 缺口补全（v0.3）",
+   "status": "active",
+   "probe": "读码：记忆写入面来源过滤与冲突/回滚机制存在性",
+   "params": [
+    "file_glob",
+    "memory_store"
+   ]
+  },
+  {
+   "id": "LLM-SEC-006",
+   "layer": "LLM·安全",
+   "subdomain": "系统提示泄漏",
+   "title": "系统提示出现在用户/第三方可读路径（错误信息/调试端点/日志）",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "security-system-prompt-leakage",
+   "source": "OWASP LLM Top10 2025 LLM07 缺口补全（v0.3）",
+   "status": "active",
+   "probe": "数据流：系统提示串→输出路径（响应/错误/日志/调试接口）的暴露点",
+   "params": [
+    "file_glob",
+    "prompt_path"
+   ]
+  },
+  {
+   "id": "LLM-RAG-006",
+   "layer": "LLM·RAG",
+   "subdomain": "向量库访问控制",
+   "title": "向量库/索引直接访问面无鉴权与命名空间隔离",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "llm-vector-access-control",
+   "source": "OWASP LLM Top10 2025 LLM08 缺口补全（v0.3）",
+   "status": "active",
+   "probe": "读码：向量库连接/查询接口的鉴权与租户隔离配置",
+   "params": [
+    "file_glob",
+    "index_path"
+   ]
+  },
+  {
+   "id": "LLM-RAG-007",
+   "layer": "LLM·RAG",
+   "subdomain": "嵌入倒推",
+   "title": "敏感原文经嵌入存储的倒推风险（相似度接口暴露面）",
+   "verification": "U",
+   "severity_default": "medium",
+   "defect_class": "llm-embedding-inversion",
+   "source": "OWASP LLM Top10 2025 LLM08 缺口补全（v0.3）",
+   "status": "active",
+   "probe": "推断：嵌入接口是否可被非授权方批量相似度查询（倒推原文可行性）",
+   "params": [
+    "file_glob",
+    "index_path"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-001",
+   "layer": "LLM·安全",
+   "subdomain": "身份与代理间信任",
+   "title": "身份与权限滥用＋代理间信任链：子代理/工具继承超范围身份，委派与消息无校验",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "agentic-identity-trust",
+   "source": "OWASP Top 10 for Agentic Applications 2025-12（ASI03+ASI07）× agentic 缺口闭合",
+   "status": "active",
+   "probe": "读码：子代理/工具的身份传递与权限声明、跨代理消息与委派入口的校验存在性",
+   "params": [
+    "file_glob",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-002",
+   "layer": "LLM·工具调用",
+   "subdomain": "工具与插件供应链",
+   "title": "MCP/插件/第三方工具的来源、权限声明与更新链未锁定",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "agentic-tool-supply-chain",
+   "source": "OWASP Agentic Top10（ASI04）× AST10（AST01/02）",
+   "status": "active",
+   "probe": "清单：工具/MCP/插件来源与版本锁定；权限声明与实际能力一致性",
+   "params": [
+    "file_glob",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-003",
+   "layer": "LLM·韧性",
+   "subdomain": "级联失败与失控代理",
+   "title": "多步骤/多代理单点失败无熔断；无全局停止开关；越界持续运行风险",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "agentic-cascading-and-rogue",
+   "source": "OWASP Agentic Top10（ASI08+ASI10）",
+   "status": "active",
+   "probe": "读码：熔断/全局停止/步数与其他硬上限存在性；异常代理的隔离与回收路径",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "SEC-032",
+   "layer": "安全散点",
+   "subdomain": "属性级授权",
+   "title": "对象属性级授权缺失/批量赋值：过度暴露可读字段或可写字段未白名单",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "security-mass-assignment-cwe-915",
+   "source": "OWASP API Security Top10 2023 API3（扩大化搜查 v0.4.0）",
+   "status": "active",
+   "probe": "数据流：外部对象直接映射进模型/数据库写入（批量赋值面）；响应序列化字段与授权范围比对",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "SEC-033",
+   "layer": "安全散点",
+   "subdomain": "第三方API消费",
+   "title": "不安全消费第三方 API：响应未校验直接采信/透传",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "security-unsafe-api-consumption",
+   "source": "OWASP API Security Top10 2023 API10（v0.4.0）",
+   "status": "active",
+   "probe": "读码：第三方响应→内部使用的路径上是否有 schema/来源校验；错误响应是否被当可信输入",
+   "params": [
+    "file_glob",
+    "api_endpoint"
+   ]
+  },
+  {
+   "id": "GEN-API-004",
+   "layer": "通用·API",
+   "subdomain": "清单与退役治理",
+   "title": "API 清单漂移：影子端点/旧版本未停用/文档与实际不一致",
+   "verification": "S",
+   "severity_default": "medium",
+   "defect_class": "api-inventory-drift",
+   "source": "OWASP API Security Top10 2023 API9（v0.4.0）",
+   "status": "active",
+   "probe": "枚举全部路由/端点 ↔ 文档与实际暴露面比对；标出未在清单中的端点",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "LLM-MCP-001",
+   "layer": "LLM·工具调用",
+   "subdomain": "工具描述投毒",
+   "title": "工具描述投毒：工具元数据/说明文本中藏指令或误导性权限声明",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "mcp-tool-poisoning",
+   "source": "OWASP MCP Top10 MCP03＋Simon Willison 工具投毒先例（v0.4.0）",
+   "status": "active",
+   "probe": "读取全部工具/MCP 描述文本，扫描隐藏指令模式（不可见字符/条件触发语句）；权限声明与实际能力比对",
+   "params": [
+    "file_glob",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-MCP-002",
+   "layer": "LLM·工具调用",
+   "subdomain": "上下文过度共享",
+   "title": "上下文注入与过度共享：跨服务器/跨工具上下文越权互见",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "mcp-context-over-sharing",
+   "source": "OWASP MCP Top10 MCP10（v0.4.0）",
+   "status": "active",
+   "probe": "读码：上下文/记忆在服务器与工具之间的传递范围与隔离（哪些数据进哪些服务器）",
+   "params": [
+    "file_glob",
+    "tool_name"
+   ]
+  },
+  {
+   "id": "LLM-MCP-003",
+   "layer": "LLM·工具调用",
+   "subdomain": "MCP令牌管理",
+   "title": "MCP 令牌与密钥管理：存储位置/传递方式/权限范围",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "mcp-token-mismanagement",
+   "source": "OWASP MCP Top10 MCP01（v0.4.0）",
+   "status": "active",
+   "probe": "读码：令牌的存放（明文配置文件? Keychain?）与传递路径；权限范围是否最小化（只记位置与类型，D-004）",
+   "params": [
+    "file_glob",
+    "env_key"
+   ]
+  },
+  {
+   "id": "LLM-MCP-004",
+   "layer": "LLM·工具调用",
+   "subdomain": "影子MCP与审计",
+   "title": "影子 MCP 服务器：未纳管/未审计的服务器在运行；调用无审计遥测",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "mcp-shadow-server",
+   "source": "OWASP MCP Top10 MCP09+MCP08（v0.4.0）",
+   "status": "active",
+   "probe": "清单：实际配置的 MCP 服务器 ↔ 经批准清单比对；调用日志/遥测存在性",
+   "params": [
+    "file_glob",
+    "tool_name",
+    "log_config"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-004",
+   "layer": "LLM·安全",
+   "subdomain": "致命三要素组合",
+   "title": "致命三要素组合：私有数据访问×不可信内容摄入×外部通信通道三者齐备且无隔离",
+   "verification": "S",
+   "severity_default": "critical",
+   "defect_class": "lethal-trifecta-composite",
+   "source": "Lethal Trifecta（Simon Willison/Palo Alto 2026）（v0.4.0）",
+   "status": "active",
+   "probe": "组合判定：分别枚举三要素证据（数据面/摄入面/出站面），三者齐备且无分隔即判高危",
+   "params": [
+    "file_glob",
+    "entrypoint",
+    "sink=network"
+   ]
+  },
+  {
+   "id": "LLM-AGENT-005",
+   "layer": "LLM·韧性",
+   "subdomain": "多代理失败模式",
+   "title": "MAST 14 失败模式扫描（任务规范/角色/步骤重复/历史丢失/终止失知/会话重置/不澄清/脱轨/信息隐匿/忽视他者/行动推理错配/过早终止/弱验证/错误验证）",
+   "verification": "U",
+   "severity_default": "high",
+   "defect_class": "mast-multi-agent-failures",
+   "source": "MAST（arXiv 2503.13657，主源 definitions.txt 核对）（v0.4.0）",
+   "status": "active",
+   "probe": "清单化扫描：对多代理编排逐一核对 14 模式的可发生条件（U 类：以编排结构与防护缺失推断）",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  }
+ ]
+}

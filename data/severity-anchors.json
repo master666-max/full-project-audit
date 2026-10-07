@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "frozen_at": "2026-10-07",
+    "sign_off": "用户签字冻结（原话：锚定集 12 冻结）——bootstrap 流程（12 例全取自 B4 试点真实发现）走完，正式版生效",
+    "purpose": "严重度锚定集 v1.0（已冻结）—— 4 级 × 3 例（每级含 ≥1 边界例）＋ 安全档 1 例，共 12 例",
+    "calibration_rule": "agent 初判后对照本集定级；自由区不含严重度终判（设计书 §6.1）；冻结后修改须走版本递增并重新签字",
+    "drawn_from": "B4 试点 受审项目 真实发现（pilot/batch-reports/*）＋ 检查点库 v0.3.0"
+  },
+  "anchors": [
+    {"level": "critical", "sample": "路径穿越：状态文件 meta.backup 未校验即 join → 读取覆写补丁文件 + os.remove 任意路径（B4-D 臂真阳性，受审项目脚本:670）", "rationale": "可利用且触及数据/文件完整性", "boundary": false},
+    {"level": "critical", "sample": "LLM-LOOP 类：完成标志依赖模型自报且主循环无步数/时长/token 上限——无限空转、烧钱、永不终止", "rationale": "目的函数双命脉（成本＋可信）无上界损伤", "boundary": false},
+    {"level": "critical", "sample": "前置分支错写导致安全门失效：回滚/还原路径的存在性判定失效致破坏性操作重复执行", "rationale": "不可逆操作 × 判定失效", "boundary": true, "boundary_note": "边界例（刚好够得上 critical）：须证明路径可达且不可逆；可逆或不可达则降 high"},
+    {"level": "high", "sample": "单实例锁缺 O_EXCL（受审项目主脚本:118，B4 五臂共识）→ 并发双击互斥失效，双实例抢启动竞态", "rationale": "并发缺陷，可执行级复现且有自带用例断言其行为", "boundary": false},
+    {"level": "high", "sample": "敏感日志落盘可预测临时文件（日志快照文件.txt，含 ?token= 地址）→ 凭据旁路泄漏", "rationale": "凭据暴露但需同机同用户前提", "boundary": true, "boundary_note": "边界例（high/critical 之间）：可被跨用户读取或含长期凭据则升 critical；本机单用户模型判 high"},
+    {"level": "high", "sample": "验收假绿：tests_ok 只看退出码不看 FAIL 文本（受审项目脚本:48 型）→ 失败可能被记成通过", "rationale": "假绿直击完成由对账定义的公理", "boundary": false},
+    {"level": "medium", "sample": "子进程调用缺 timeout（受审项目脚本:24）→ 挂死无界等待", "rationale": "可靠性缺口，影响范围限于本工具流程", "boundary": false},
+    {"level": "medium", "sample": "严格匹配正则丢锚点（fallback-heal.py:238 型）→ 误删面扩大，但需 --clean 显式触发", "rationale": "破坏性操作但有双重前提（显式参数＋命中前提）", "boundary": true, "boundary_note": "边界例（刚好够得上 medium）：删除对象含用户数据则升 high"},
+    {"level": "medium", "sample": "逻辑反转致功能静默失效：差集方向写反致自愈空转（fallback-heal.py:125 型）", "rationale": "功能失效但无破坏性、dry-run 可见", "boundary": false},
+    {"level": "low", "sample": "文档与实测数字不一致（MAINTENANCE.md 36 vs 实测 43 用例）、注释引用不存在的脚本", "rationale": "记录类瑕疵，不改变行为", "boundary": false},
+    {"level": "low", "sample": "死代码/未使用导入/return 后冗余块（多处）", "rationale": "维护噪音", "boundary": true, "boundary_note": "边界例（刚好够不上 medium）：死代码含危险调用则升 medium（可能被误激活）"},
+    {"level": "critical（安全档·CVSS 对齐）", "sample": "可利用的命令注入：外部派生串未过任何闸即进 shell（cwe-78）。B4 教训：上游已有 cmd_arg_safe 类闸收窄时属降级观察（依赖单点），不判缺陷、按硬化建议记 INFO", "rationale": "CVSS 对齐：Critical＝可利用×触达执行链/数据；存在注入面但被上游闸收窄的记 INFO", "boundary": false, "security_scale": "critical=可利用且触达数据/执行链；high=可利用但需前提（同用户/显式参数）；medium=理论面不可达；low=信息性"}
+  ],
+  "pilot_lessons_embedded": [
+    "T05/T06 教训：严重度判定必须过可利用性/上游闸分析——判定为降级观察的条目不得按注入面直接定 critical（已写入安全档说明）",
+    "样本一律带 file:line 与臂来源（可复核）"
+  ]
+}
