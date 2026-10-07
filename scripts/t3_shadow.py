@@ -32,6 +32,7 @@ def main():
     ap.add_argument("--v-high", type=float, default=30)
     ap.add_argument("--v-low", type=float, default=5)
     ap.add_argument("--cost-per-mtoken", type=float, default=1.0)
+    ap.add_argument("--run-ledger", default=None, help="当前运行 v2 账本：提供则追加 stop_engine σ 摘要（W8.2）")
     args = ap.parse_args()
 
     rows = load_ledger(args.ledger)
@@ -69,8 +70,21 @@ def main():
     for t in table:
         lines.append(f"| {t['batch']} | {t['tasks']} | {t['batch_value']} | {t['cum_tasks']} | {t['cum_value']} | {t['cum_tokens_M']} | {t['next_EVI']} | {'★停' if t['stop_recommend'] else ''} |")
     lines += ["", f"**影子结论**：{'；'.join(reasons) if reasons else '未达停机点（EVI 全程为正）'}", ""]
+    # W8.2 挂接：--run-ledger 给出时追加 stop_engine σ 摘要（L0 影子，不驱动停机）
+    if getattr(args, "run_ledger", None) and os.path.exists(args.run_ledger):
+        try:
+            import stop_engine
+            rl = [json.loads(l) for l in open(args.run_ledger, encoding="utf-8") if l.strip()]
+            d = stop_engine.advice(rl, rl, "pool", 1.0,
+                                   {"critical": args.v_crit, "high": args.v_high, "other": args.v_low})
+            lines += ["## σ 停机引擎摘要（stop_engine · L0 影子）", "",
+                      f"- σ_max={d['sigma_max']}（每 M-token 价值）｜运行最新批={d['run_last_per_token_value']}｜"
+                      f"建议停机={d['suggest_stop']}（建议≠停机，FP5 三级门见设计书 §7.2）"]
+        except Exception as e:
+            lines += ["", f"## σ 停机引擎摘要", "", f"- 挂接失败（如实登记）：{type(e).__name__}: {e}"]
     out = os.path.join(args.out, "t3-shadow.md")
-    open(out, "w", encoding="utf-8").write("\n".join(lines))
+    with open(out, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
     print(f"T3-SHADOW: 批次 {len(table)}｜影子停机点: {stop_at if stop_at else '无（全程 EVI>0）'} -> {out}")
     return 0
 
