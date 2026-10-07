@@ -8,9 +8,10 @@
 ## 是什么
 
 - **检查点库**（`data/checkpoints.json`）：45 层 × 子域 × 检查点，每条标注验法（S 静态／R 运行／A 消融／U 推断）、严重度、缺陷类、**失效模式来源**。
-- **池家族**（`data/pools/`）：由全量池机械派生，`--data` 换池即换档：
+- **池家族**（共 7 名，`data/pools/` 内 6 个派生件＋权威源）——由全量池机械派生（`scripts/build_pools.py` 可直接重建），`--data` 换池即换档：
   | 池 | 条数 | 定位 |
   |---|---|---|
+  | **full（全量）** | **214** | 唯一权威源 ＝ `data/checkpoints.json`（家族 0 号，其余皆由它派生） |
   | micro | 29 | 进门级快速体检 |
   | quick | 117 | 通用快速审查 |
   | security | 55 | 安全专项 |
@@ -29,6 +30,12 @@ py -X utf8 scripts/audit.py reconcile --tasks tasks.jsonl --enum enumeration/fil
 py -X utf8 scripts/audit.py coverage  --tasks tasks.jsonl --data data/checkpoints.json
 py -X utf8 scripts/audit.py --self-test
 ```
+
+## 审查是怎么工作的（原子化过程）
+
+检查点池回答"查什么"；**原子化**回答"怎么查、查到什么程度算数"：前置解剖产底册 → 池 × 底册 × 意图 → **AMR 加密循环**（池化筛查 ⇒ 热区下钻 ⇒ 停机）→ 原子任务（单一对象 × 单一动作 × 明确输出）→ 覆盖断言与对账验收。出发点是一条成本结构：**任务越细，真做越比伪造便宜**——管理因此被前置到任务设计里，运行期只剩一个"收集＋对账"的循环。
+
+详见 **[docs/atomization-process.md](docs/atomization-process.md)**。
 
 ## 设计原则（摘要）
 
