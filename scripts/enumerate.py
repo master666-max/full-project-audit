@@ -225,7 +225,7 @@ def cmd_intent(args, root):
         if base.startswith("readme"):
             yield {"kind": "intent", "key": "readme", "file": rel, "line": 0, "meta": {"source": "readme"}}
             n += 1
-        elif re.match(r'(?:^|/)(?:test_[^/]*\.py|[^/]*_test\.py)$', rel) or "/tests/" in f"/{rel}":
+        elif re.match(r'(?:^|/)(?:test_[^/]*\.py|[^/]*_tests?\.py)$', rel) or "/tests/" in f"/{rel}" or "/test/" in f"/{rel}":
             yield {"kind": "intent", "key": "test", "file": rel, "line": 0, "meta": {"source": "test"}}
             n += 1
     print(f"intent: {n}")
