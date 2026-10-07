@@ -19,6 +19,8 @@ def main():
                     help="每任务每臂 token 均值（自审真值重定基：池 827k／下钻 159k／混合默认 250k；"
                          "v1 的 27000 被实测否证）")
     ap.add_argument("--threshold", type=int, default=9000000)
+    ap.add_argument("--sigma-order", default=None, metavar="stop_advice.json",
+                    help="stop_engine 输出：提供则输出 σ 排序行（v1.5 停机算法化联动的 TRIMMED 保留线依据）")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
     n = sum(1 for line in open(args.tasks, encoding="utf-8") if line.strip())
@@ -27,6 +29,13 @@ def main():
            f"{est/1e6:.1f}M token | 基线：自审 12 批真值（池 827k／下钻 159k） |")
     suggest = "建议 TRIMMED" if est > args.threshold else "可按当前档执行"
     print(row)
+    if args.sigma_order and os.path.exists(args.sigma_order):
+        with open(args.sigma_order, encoding="utf-8") as f:
+            sg = json.load(f)
+        print(f"σ 排序行（v1.5）：σ_max={sg.get('sigma_max')}｜建议停机={sg.get('suggest_stop')}"
+              f"（L0 影子）——TRIMMED 保留线按 stop_engine 预约价值降序切至预算线")
+    elif args.sigma_order:
+        print("σ 排序行：--sigma-order 文件缺失（占位：影子参数未校准）")
     print(f"BUDGET 预估 {est/1e6:.1f}M token；阈值 {args.threshold/1e6:.0f}M → {suggest}")
     if args.out:
         with open(args.out, "a", encoding="utf-8") as f:

@@ -532,6 +532,9 @@ def final_check(report, tasks, reports_dir=None):
     # 悬置条款：凡有 RUNTIME-UNVERIFIED，必须附重试条件
     if "RUNTIME-UNVERIFIED" in txt and "重试条件" not in txt and "重试" not in txt:
         problems.append("存在 RUNTIME-UNVERIFIED 但未附重试条件（悬置三态须带出口）")
+    # L1 提名条款（W9）：终报载有停机建议，必须载残余敞口计量
+    if "L1 提名" in txt and "残余敞口" not in txt:
+        problems.append("终报载有 L1 停机建议但未附残余敞口计量（FP1：早停敞口必须被独立计量）")
     d = {"report": os.path.basename(report), "problems": problems}
     return d, len(problems) == 0
 
@@ -729,6 +732,17 @@ def selftest_all():
             f.write("层层都过，整体没事")
         _, okf2 = final_check(fr, tk2)
         results.append(("final-check 禁语→FAIL", not okf2))
+        # L1 条款：载停机建议必附残余敞口（独立夹具——禁语测试的追加会污染同文件）
+        fr2 = os.path.join(td, "final_l1.md")
+        with open(fr2, "w", encoding="utf-8") as f:
+            f.write("## 1. 档位与等级 SEMI\n## 2. 判定分布\n## 3. 检出率\n## 4. 组合不确定性\n"
+                    "## 5. 盲法\n## 6. 悬置\n## 7. 评估觉知\n## 8. 盲区回写\n快照 deadbeef\n"
+                    "L1 提名：建议停机点 τ=9")
+        _, okf3 = final_check(fr2, tk2)
+        with open(fr2, "a", encoding="utf-8") as f:
+            f.write("\n残余敞口：13%")
+        _, okf4 = final_check(fr2, tk2)
+        results.append(("final-check L1 条款双向", (not okf3) and okf4))
         # metrics
         mtasks = [{"checkpoint_ids": ["c1"], "targets": [{"file": "a.py", "line": 0, "kind": "file", "source": "s"}]},
                   {"checkpoint_ids": ["c1"], "targets": [{"file": "a.py", "line": 0, "kind": "file", "source": "s"}]}]
