@@ -5,11 +5,11 @@
   "desc": "多代理与工具编排面：代理身份信任链/工具供应链/级联失败与失控/工具调用/循环控制/韧性/记忆与索引投毒/MCP 四面。适用于 agent 系统与 MCP 集成审查。",
   "derived_from": {
    "file": "data/checkpoints.json",
-   "template_version": "0.4.0",
-   "sha16": "583958fb419bb9ce"
+   "template_version": "0.4.1",
+   "sha16": "d5838de87f61d9e4"
   },
   "selection_rule": "见 audit/build_pools.py RULES（唯一事实源；重新生成即重放）",
-  "generated_at": "2026-10-07 21:22",
+  "generated_at": "2026-10-07 17:51 UTC",
   "count": 25,
   "by_severity": {
    "high": 19,
@@ -22,7 +22,7 @@
    "U": 3
   }
  },
- "template_version": "0.4.0",
+ "template_version": "0.4.1",
  "layer_history": "45 → 42（轮6删） → 45（v1.4 安全回归）",
  "checkpoints": [
   {

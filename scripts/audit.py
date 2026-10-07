@@ -17,7 +17,9 @@ LCF 小核纪律：reconcile 小节 ≤150 行、一屏可逐行审。
 """
 import argparse
 import glob as _glob
+import hashlib
 import json
+import math
 import os
 import re
 import shutil as _shutil
@@ -27,12 +29,20 @@ import tempfile
 
 
 def load_jsonl(path):
+    """响亮失败：文件缺失或某行坏 JSON 一律带定位退出（自审 T116/T178：静默返回 [] 会把
+    「底册为空」伪装成「一切正常」，下游 reconcile/coverage 全绿地输出废结论）。"""
+    if not os.path.exists(path):
+        raise SystemExit(f"输入缺失: {path}（若为枚举底册，先跑 enumerate.py 对应子命令）")
     rows = []
     with open(path, encoding="utf-8") as f:
-        for line in f:
+        for i, line in enumerate(f, 1):
             line = line.strip()
-            if line:
+            if not line:
+                continue
+            try:
                 rows.append(json.loads(line))
+            except json.JSONDecodeError as e:
+                raise SystemExit(f"{path}:{i}: JSONL 解析失败: {e}")
     return rows
 
 
@@ -74,6 +84,10 @@ def reconcile(tasks, files, reports_dir=None, semantic=False):
 
 
 def coverage(tasks, active_ids):
+    """检查点覆盖断言。空池=FAIL（自审 T199：空池静默 PASS 会给废任务集盖全绿章）。"""
+    if not active_ids:
+        return False, {"active": 0, "uncovered": [], "by_task_count": {},
+                       "note": "active 集为空——空池不给 PASS"}
     cid_tasks = {}
     for t in tasks:
         for cid in t.get("checkpoint_ids", []):
@@ -111,20 +125,35 @@ def cmd_coverage(args):
     return 0 if ok else 1
 
 
-# ---------- W2-1 缺陷类覆盖断言 ----------
-def pool_lint(active):
+# ---------- W2-1 池体检（自审 T246/T090 后给真牙：原实现检查下限≥1 恒真） ----------
+STATUS_ENUM = {"active", "optional", "deprecated"}
+
+
+def pool_lint(entries):
+    """entries=全部检查点（含非 active）。真检查：重复 id、status 枚举、缺陷类非空、类下限。"""
+    seen, dup = set(), []
+    illegal_status = []
+    for c in entries:
+        if c.get("id") in seen:
+            dup.append(c.get("id"))
+        seen.add(c.get("id"))
+        if c.get("status") not in STATUS_ENUM:
+            illegal_status.append(f"{c.get('id')}:{c.get('status')}")
+    active = [c for c in entries if c.get("status") == "active"]
     by_class = {}
     for c in active:
-        by_class.setdefault(c["defect_class"], 0)
-        by_class[c["defect_class"]] += 1
-    empty = []  # 空行=盲区：声明过但无 active（当前实现：类由条目定义，故检查下限≥1 恒真；留接口）
-    return {"classes": len(by_class), "min_per_class": min(by_class.values()) if by_class else 0,
-            "zero_classes": empty}, (len(empty) == 0) and len(by_class) > 0
+        by_class.setdefault(c.get("defect_class") or "<空>", 0)
+        by_class[c.get("defect_class") or "<空>"] += 1
+    d = {"entries": len(entries), "active": len(active), "classes": len(by_class),
+         "min_per_class": min(by_class.values()) if by_class else 0,
+         "dup_ids": sorted(set(dup)), "illegal_status": illegal_status}
+    ok = (not dup) and (not illegal_status) and len(by_class) > 0
+    return d, ok
 
 
 def cmd_pool_lint(args):
     doc, active = _load_pool(args.data)
-    d, ok = pool_lint(active)
+    d, ok = pool_lint(doc["checkpoints"])
     print(json.dumps(d, ensure_ascii=False, indent=1))
     print("POOL-LINT", "PASS" if ok else "FAIL")
     return 0 if ok else 1
@@ -149,35 +178,50 @@ def boundary_matrix(active):
         coupled_classes |= (c1 | c2) if (c1 and c2) else set()
     all_classes = {c for s in classes_by_layer.values() for c in s}
     orphans = sorted(all_classes - coupled_classes)
+    # ok 语义（自审 T246：原硬编码 True 恒真）：至少一组两侧皆有类的登记对才算数；
+    # --strict 下未入矩阵的缺陷类（组合盲区）也判 FAIL。
     return {"matrix_rows": len(rows), "rows": rows,
-            "uncoupled_classes": len(orphans), "orphan_sample": orphans[:10]}, True
+            "uncoupled_classes": len(orphans), "orphan_sample": orphans[:10]}, len(rows) > 0
 
 
 def cmd_boundary(args):
     doc, active = _load_pool(args.data)
     d, ok = boundary_matrix(active)
+    if getattr(args, "strict", False) and d["uncoupled_classes"] > 0:
+        ok = False
     print(json.dumps(d["rows"], ensure_ascii=False, indent=1))
     print(f"BOUNDARY 登记对 {d['matrix_rows']} 组；未入耦合矩阵的缺陷类 {d['uncoupled_classes']} 个（空行=组合盲区）")
-    print("BOUNDARY", "PASS" if ok else "FAIL")
+    print("BOUNDARY", "PASS" if ok else "FAIL" + ("（strict：存在组合盲区）" if getattr(args, "strict", False) else ""))
     return 0 if ok else 1
 
 
 # ---------- W2-3 漂移检测 ----------
 def drift_check(tasks, repo):
+    """漂移检测。NO-GIT 快照的任务不可核验——必须响亮列出（自审 T074：
+    静默把不可核验当 PASS，等于给未校验的批次盖漂移全绿章）。"""
     try:
         head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo,
                               capture_output=True, timeout=15).stdout.decode().strip()
     except Exception:
         head = "NO-GIT"
-    drifted = [t["task_id"] for t in tasks
-               if t.get("snapshot") not in (head, "NO-GIT", "", None) and t.get("snapshot")]
-    return head, drifted, (len(drifted) == 0)
+    drifted, unverifiable = [], []
+    for t in tasks:
+        snap = t.get("snapshot")
+        if not snap or snap == "NO-GIT":
+            unverifiable.append(t["task_id"])
+        elif snap != head:
+            drifted.append(t["task_id"])
+    return head, drifted, unverifiable, (len(drifted) == 0)
 
 
 def cmd_drift(args):
-    head, drifted, ok = drift_check(load_jsonl(args.tasks), args.repo)
-    print(json.dumps({"head": head, "drifted_tasks": drifted}, ensure_ascii=False, indent=1))
+    head, drifted, unverifiable, ok = drift_check(load_jsonl(args.tasks), args.repo)
+    print(json.dumps({"head": head, "drifted_tasks": drifted,
+                      "unverifiable_tasks": unverifiable}, ensure_ascii=False, indent=1))
     print("DRIFT", "PASS" if ok else "FAIL（漂移任务应作废重排）")
+    if unverifiable:
+        print(f"DRIFT-UNVERIFIABLE {len(unverifiable)} 任务快照不可核验（NO-GIT）——这批不构成漂移证据",
+              file=sys.stderr)
     return 0 if ok else 1
 
 
@@ -200,14 +244,54 @@ def _is_claim(txt, m, word):
     return True
 
 
-def fields_check(reports_dir):
+CIT_RX = re.compile(r"([\w\-./\\]+\.(?:py|md|json|yml|yaml|toml|bat|sh|ps1|js|ts)):(\d+)")
+
+
+def _check_citations(txt, repo, broken):
+    """引用存在性校验（自审盲法新检出 GROUND-002 的修复：原实现只验格式不验存在，
+    虚构 file:line 可穿过全部机械闸）。repo=None 时跳过（无被审根则无从核对）。"""
+    if not repo:
+        return
+    cache = {}
+    for m in CIT_RX.finditer(txt):
+        rel = m.group(1).replace("\\", "/")
+        ln = int(m.group(2))
+        key = rel.lower()
+        nlines = cache.get(key)
+        if nlines is None:
+            fp = os.path.join(repo, rel)
+            if not os.path.isfile(fp):
+                cache[key] = -1
+            else:
+                with open(fp, "rb") as f:
+                    cache[key] = sum(1 for _ in f)
+            nlines = cache[key]
+        if nlines == -1:
+            broken.append(f"{rel}:{ln}（缺文件）")
+        elif ln > nlines:
+            broken.append(f"{rel}:{ln}（越界，文件仅 {nlines} 行）")
+
+
+def fields_check(reports_dir, repo=None):
     problems, total, fails_no_path = [], 0, 0
+    broken = []
     verdict_rx = re.compile(r"PASS|FAIL|N/A|阴性|阳性|命中")
     sev_rx = re.compile(r"严重度|critical|high|medium|low|高危|中危|低危", re.I)
     for p in sorted(_glob.glob(os.path.join(reports_dir, "*.md"))):
         txt = open(p, encoding="utf-8", errors="replace").read()
         name = os.path.basename(p)
         total += 1
+        # 结构化 sidecar（<同名>.json）优先：字段直读，不走词表猜（D-F 终局形态）
+        side = os.path.splitext(p)[0] + ".json"
+        if os.path.exists(side):
+            with open(side, encoding="utf-8") as f:
+                sc = json.load(f)
+            if not sc.get("verdict"):
+                problems.append(f"{name}: sidecar 缺 verdict")
+            if sc.get("verdict") in ("FAIL", "命中") and not sc.get("severity"):
+                problems.append(f"{name}: sidecar 失败判定缺 severity")
+            _check_citations("\n".join(sc.get("citations", [])), repo, broken)
+            continue
         if not verdict_rx.search(txt):
             problems.append(f"{name}: 无判定（PASS/FAIL/N-A/阴性/阳性/命中）")
         claims = [m for m in re.finditer("FAIL", txt) if _is_claim(txt, m, "FAIL")]
@@ -220,11 +304,15 @@ def fields_check(reports_dir):
                 problems.append(f"{name}: 含 FAIL/阳性主张 但无核验路径（疑点）")
             if not sev_rx.search(txt):
                 problems.append(f"{name}: 含 FAIL/阳性主张 但无严重度")
-    return {"reports": total, "problems": problems, "fails_without_path": fails_no_path}, len(problems) == 0
+        _check_citations(txt, repo, broken)
+    if broken:
+        problems.append(f"引用失效 {len(broken)} 处（缺文件或行号越界）: " + "；".join(sorted(set(broken))[:15]))
+    return {"reports": total, "problems": problems, "fails_without_path": fails_no_path,
+            "broken_citations": len(broken)}, len(problems) == 0
 
 
 def cmd_fields(args):
-    d, ok = fields_check(args.reports)
+    d, ok = fields_check(args.reports, getattr(args, "repo", None))
     print(json.dumps(d, ensure_ascii=False, indent=1))
     print("FIELDS", "PASS" if ok else "FAIL")
     return 0 if ok else 1
@@ -235,15 +323,25 @@ HIGH_LAYER_MARK = ("AIG·正确性", "AIG·幻觉 API", "LLM·循环控制", "LL
 
 
 def stratified_sample(tasks, rate_high, rate_rest):
+    """稳定抽样：sha256(task_id) 代替内建 hash（自审 T184：PYTHONHASHSEED 随机化令
+    抽验清单跨次不可复现，同输入两次运行抽中集合不同）。"""
     picked = []
     for t in tasks:
         rate = rate_high if any(m in t.get("layer", "") for m in HIGH_LAYER_MARK) else rate_rest
-        if rate > 0 and (hash(t["task_id"]) % 100) < int(rate * 100):
+        h = int(hashlib.sha256(t["task_id"].encode("utf-8")).hexdigest()[:8], 16)
+        if rate > 0 and (h % 100) < int(rate * 100):
             picked.append(t["task_id"])
     return picked
 
 
+def _check_rate(name, v):
+    if not (isinstance(v, float) and math.isfinite(v) and 0 <= v <= 1):
+        raise SystemExit(f"--{name} 必须是 0..1 的有限数（自审 T199：inf/nan/负值曾静默抽 0 或崩溃）")
+
+
 def cmd_sample(args):
+    _check_rate("rate-high", args.rate_high)
+    _check_rate("rate-rest", args.rate_rest)
     tasks = load_jsonl(args.tasks)
     picked = stratified_sample(tasks, args.rate_high, args.rate_rest)
     os.makedirs(args.out, exist_ok=True)
@@ -260,7 +358,9 @@ def cmd_sample(args):
 REQUIRED_5 = ("intent.md", "setup.sh", "patch.diff", "reproduce.sh", "log")
 
 
-def rerun_check(exp_dir, confirm, pick=1):
+def rerun_check(exp_dir, confirm, pick="first"):
+    """重跑判据（自审 T088/T034 修复）：rc 入判据（rc!=0=FAIL）；bash 不可用=UNVERIFIED
+    （绝不静默 PASS，也不崩成 FileNotFoundError）；--pick first|all。"""
     out = []
     dirs = sorted(d for d in _glob.glob(os.path.join(exp_dir, "*")) if os.path.isdir(d))
     complete = []
@@ -269,22 +369,31 @@ def rerun_check(exp_dir, confirm, pick=1):
         out.append({"exp": os.path.basename(d), "missing": missing})
         if not missing:
             complete.append(d)
-    ran = None
+    ran, unverified = [], None
     if confirm and complete:
-        d = complete[0]
-        bash = _shutil.which("bash") or "bash"
-        r = subprocess.run([bash, "reproduce.sh"], cwd=d, capture_output=True, timeout=600)
-        tail = (r.stdout.decode("utf-8", "replace") + r.stderr.decode("utf-8", "replace"))[-400:].strip()
-        ran = {"exp": os.path.basename(d), "rc": r.returncode, "out_tail": tail}
-        with open(os.path.join(d, "log"), "a", encoding="utf-8") as f:
-            f.write(f"\n[rerun by audit.py] rc={r.returncode}\n{tail}\n")
-    return {"experiments": out, "complete": len(complete), "ran": ran}, (len(complete) > 0)
+        bash = _shutil.which("bash")
+        if not bash:
+            unverified = "RUNTIME-UNVERIFIED：系统无 bash（Windows 装 Git Bash 后重试）——未执行，不判 PASS"
+        else:
+            targets = complete if pick == "all" else complete[:1]
+            for d in targets:
+                r = subprocess.run([bash, "reproduce.sh"], cwd=d, capture_output=True, timeout=600)
+                tail = (r.stdout.decode("utf-8", "replace") + r.stderr.decode("utf-8", "replace"))[-400:].strip()
+                ran.append({"exp": os.path.basename(d), "rc": r.returncode, "out_tail": tail})
+                with open(os.path.join(d, "log"), "a", encoding="utf-8") as f:
+                    f.write(f"\n[rerun by audit.py] rc={r.returncode}\n{tail}\n")
+    ok = len(complete) > 0 and not unverified and all(r["rc"] == 0 for r in ran)
+    return {"experiments": out, "complete": len(complete), "ran": ran,
+            "unverified": unverified}, ok
 
 
 def cmd_rerun(args):
-    d, ok = rerun_check(args.experiments, args.confirm)
+    d, ok = rerun_check(args.experiments, args.confirm, getattr(args, "pick", "first"))
     print(json.dumps(d, ensure_ascii=False, indent=1))
-    print("RERUN", "PASS" if ok else "FAIL")
+    if d["unverified"]:
+        print("RERUN", "UNVERIFIED")
+        return 2
+    print("RERUN", "PASS" if ok else "FAIL（不完整，或复跑 rc!=0）")
     return 0 if ok else 1
 
 
@@ -340,11 +449,6 @@ def cmd_metrics(args):
     return 0
 
 
-def cmd_not_implemented(args):
-    print(f"`{args.cmd}`：MVP 未实现。")
-    return 2
-
-
 # ---------- 自测 ----------
 def self_test():
     with tempfile.TemporaryDirectory() as td:
@@ -377,8 +481,9 @@ def selftest_all():
         results.append(("boundary 登记对", bd["matrix_rows"] == len(COUPLING_PAIRS)))
         # drift
         tasks = [{"task_id": "t1", "snapshot": "deadbeef"}, {"task_id": "t2", "snapshot": "NO-GIT"}]
-        _, drifted, ok2 = drift_check(tasks, td)
+        _, drifted, unver, ok2 = drift_check(tasks, td)
         results.append(("drift 检出漂移", (drifted == ["t1"]) and not ok2))
+        results.append(("drift NO-GIT 列不可核验", unver == ["t2"]))
         # fields
         rp = os.path.join(td, "rep_good"); os.makedirs(rp)
         open(os.path.join(rp, "good.md"), "w", encoding="utf-8").write(
@@ -396,12 +501,36 @@ def selftest_all():
         # rerun
         ed = os.path.join(td, "exp", "E1"); os.makedirs(ed)
         for f in ("intent.md", "setup.sh", "patch.diff", "log"):
-            open(os.path.join(ed, f), "w").write("x")
+            with open(os.path.join(ed, f), "w", encoding="utf-8") as fh:
+                fh.write("x")
         rr, okr = rerun_check(os.path.join(td, "exp"), confirm=False)
         results.append(("rerun 缺件→不完整", (rr["complete"] == 0) and not okr))
         open(os.path.join(ed, "reproduce.sh"), "w", encoding="utf-8").write("echo RERUN-OK\n")
         rr2, okr2 = rerun_check(os.path.join(td, "exp"), confirm=True)
-        results.append(("rerun 可跑并留 rc", okr2 and rr2["ran"] is not None))
+        results.append(("rerun 可跑并留 rc", okr2 and rr2["ran"] and rr2["ran"][0]["rc"] == 0))
+        with open(os.path.join(ed, "reproduce.sh"), "w", encoding="utf-8") as f:
+            f.write("echo BAD >&2\nexit 3\n")
+        rr3, okr3 = rerun_check(os.path.join(td, "exp"), confirm=True)
+        results.append(("rerun rc!=0 → FAIL", (not okr3) and rr3["ran"][0]["rc"] == 3))
+        # coverage 空池
+        oke, _ = coverage([{"task_id": "t", "checkpoint_ids": []}], [])
+        results.append(("coverage 空池→FAIL", not oke))
+        # pool-lint 非法 status
+        _, okp = pool_lint([{"id": "Y-1", "defect_class": "c", "status": "actve"}])
+        results.append(("pool-lint 非法 status→FAIL", not okp))
+        # 抽样稳定：同输入两次一致
+        s1 = stratified_sample(tk, 0.2, 0.05)
+        s2 = stratified_sample(tk, 0.2, 0.05)
+        results.append(("sample 跨进程稳定", s1 == s2 and len(s1) > 0))
+        # 引用存在性：真引用过、假引用抓
+        rpr = os.path.join(td, "rep_cit"); os.makedirs(rpr)
+        srcd = os.path.join(td, "repo"); os.makedirs(srcd)
+        with open(os.path.join(srcd, "real.py"), "w", encoding="utf-8") as f:
+            f.write("\n".join(f"line{i}" for i in range(1, 21)))
+        with open(os.path.join(rpr, "cit.md"), "w", encoding="utf-8") as f:
+            f.write("real.py:5 PASS 摘录 严重度 low；real.py:999 FAIL；ghost.py:1 FAIL")
+        fdc, _ = fields_check(rpr, repo=srcd)
+        results.append(("citation 存在性校验", fdc["broken_citations"] == 2))
         # metrics
         mtasks = [{"checkpoint_ids": ["c1"], "targets": [{"file": "a.py", "line": 0, "kind": "file", "source": "s"}]},
                   {"checkpoint_ids": ["c1"], "targets": [{"file": "a.py", "line": 0, "kind": "file", "source": "s"}]}]
@@ -418,22 +547,26 @@ def selftest_all():
 
 
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(allow_abbrev=False,
+                                 description="对账与审计器 v2（前缀缩写关闭——防 --enum 被静默吞成 --enum-dir，自审 T200）")
     ap.add_argument("--self-test", action="store_true")
     ap.add_argument("--selftest-all", action="store_true")
     sub = ap.add_subparsers(dest="cmd")
-    p = sub.add_parser("reconcile"); p.add_argument("--tasks", required=True); p.add_argument("--enum", required=True)
+    p = sub.add_parser("reconcile", allow_abbrev=False); p.add_argument("--tasks", required=True); p.add_argument("--enum", required=True)
     p.add_argument("--reports", default=None); p.add_argument("--semantic", action="store_true")
-    p = sub.add_parser("coverage"); p.add_argument("--tasks", required=True); p.add_argument("--data", required=True)
-    p = sub.add_parser("pool-lint"); p.add_argument("--data", required=True)
-    p = sub.add_parser("boundary"); p.add_argument("--data", required=True); p.add_argument("--tasks", default=None)
-    p = sub.add_parser("drift"); p.add_argument("--tasks", required=True); p.add_argument("--repo", default=".")
-    p = sub.add_parser("fields"); p.add_argument("--reports", required=True)
-    p = sub.add_parser("sample"); p.add_argument("--tasks", required=True)
+    p = sub.add_parser("coverage", allow_abbrev=False); p.add_argument("--tasks", required=True); p.add_argument("--data", required=True)
+    p = sub.add_parser("pool-lint", allow_abbrev=False); p.add_argument("--data", required=True)
+    p = sub.add_parser("boundary", allow_abbrev=False); p.add_argument("--data", required=True); p.add_argument("--tasks", default=None)
+    p.add_argument("--strict", action="store_true", help="存在组合盲区（未入耦合矩阵的缺陷类）即 FAIL")
+    p = sub.add_parser("drift", allow_abbrev=False); p.add_argument("--tasks", required=True); p.add_argument("--repo", default=".")
+    p = sub.add_parser("fields", allow_abbrev=False); p.add_argument("--reports", required=True)
+    p.add_argument("--repo", default=None, help="被审仓根——提供则逐条校验报告引用的 file:line 存在且行号不越界")
+    p = sub.add_parser("sample", allow_abbrev=False); p.add_argument("--tasks", required=True)
     p.add_argument("--rate-high", type=float, default=0.2); p.add_argument("--rate-rest", type=float, default=0.05)
     p.add_argument("--out", default=".")
-    p = sub.add_parser("rerun"); p.add_argument("--experiments", required=True); p.add_argument("--confirm", action="store_true")
-    p = sub.add_parser("metrics"); p.add_argument("--tasks", required=True); p.add_argument("--enum", required=True)
+    p = sub.add_parser("rerun", allow_abbrev=False); p.add_argument("--experiments", required=True); p.add_argument("--confirm", action="store_true")
+    p.add_argument("--pick", default="first", choices=["first", "all"])
+    p = sub.add_parser("metrics", allow_abbrev=False); p.add_argument("--tasks", required=True); p.add_argument("--enum", required=True)
     args = ap.parse_args()
     if args.self_test:
         return self_test()

@@ -5,26 +5,26 @@
   "desc": "全量池的横切高收益子集：全部 critical ＋ 通用卫生层（错误/配置/依赖/可靠性）＋ AI 生成代码全家族 ＋ 安全全家族（散点/通用/AI/LLM/MCP/Agent）＋ LLM 关键韧性与接地层。适用于快速全项目体检。",
   "derived_from": {
    "file": "data/checkpoints.json",
-   "template_version": "0.4.0",
-   "sha16": "583958fb419bb9ce"
+   "template_version": "0.4.1",
+   "sha16": "d5838de87f61d9e4"
   },
   "selection_rule": "见 audit/build_pools.py RULES（唯一事实源；重新生成即重放）",
-  "generated_at": "2026-10-07 21:22",
-  "count": 117,
+  "generated_at": "2026-10-07 17:51 UTC",
+  "count": 122,
   "by_severity": {
-   "high": 63,
-   "medium": 31,
+   "high": 67,
+   "medium": 32,
    "critical": 22,
    "low": 1
   },
   "by_verification": {
-   "S": 79,
+   "S": 83,
    "U": 10,
-   "R": 25,
+   "R": 26,
    "A": 3
   }
  },
- "template_version": "0.4.0",
+ "template_version": "0.4.1",
  "layer_history": "45 → 42（轮6删） → 45（v1.4 安全回归）",
  "checkpoints": [
   {
@@ -1929,6 +1929,82 @@
    "params": [
     "file_glob",
     "entrypoint"
+   ]
+  },
+  {
+   "id": "MIG-REPLAY-001",
+   "layer": "PER·复现",
+   "subdomain": "迁移脚本重跑安全",
+   "title": "迁移/合并脚本对已迁移态重跑不幂等：无前置态守卫、断言基线过期、rc 不入判据",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "repro-migration-replay-unsafe",
+   "source": "自审盲区回写（G9，2026-10-08）：task-104续2 自审实测命中家族固化",
+   "status": "active",
+   "probe": "对迁移/合并/回填脚本：读当前数据态，断言其前置假设（版本/计数/键集）是否显式校验、重跑是否拒绝或幂等、退出码是否反映校验结果",
+   "params": [
+    "file_glob",
+    "entrypoint"
+   ]
+  },
+  {
+   "id": "MIG-REPLAY-002",
+   "layer": "PER·复现",
+   "subdomain": "半完成态原子性",
+   "title": "多步持久化写无 tmp+replace/回滚：先删后拷、先写后清、中断即留半完成态",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "repro-nonatomic-write",
+   "source": "自审盲区回写（G9，2026-10-08）：task-104续2 自审实测命中家族固化",
+   "status": "active",
+   "probe": "对多步写序列（清树→拷贝、改名→替换、批量写）：是否存在中断安全点与原子落位；失败路径是否留残骸",
+   "params": [
+    "file_glob"
+   ]
+  },
+  {
+   "id": "GEN-ERR-ASSERT-001",
+   "layer": "通用·错误",
+   "subdomain": "校验时序",
+   "title": "先写后断言/写后校验缺位：持久化写操作的校验顺序错误，失败时文件已脏",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "err-write-before-validate",
+   "source": "自审盲区回写（G9，2026-10-08）：task-104续2 自审实测命中家族固化",
+   "status": "active",
+   "probe": "对写盘点：校验是否全部前臵；写后是否有回读校验；tmp+replace 原子性",
+   "params": [
+    "file_glob"
+   ]
+  },
+  {
+   "id": "GEN-REL-ENUM-001",
+   "layer": "通用·可靠性",
+   "subdomain": "清单完备性",
+   "title": "枚举/清单对非 ASCII 与被排除面的静默丢件（编码转义、ignore 规则、glob 口径）",
+   "verification": "S",
+   "severity_default": "high",
+   "defect_class": "rel-enum-silent-drop",
+   "source": "自审盲区回写（G9，2026-10-08）：task-104续2 自审实测命中家族固化",
+   "status": "active",
+   "probe": "构造含中文/特殊字符/被 ignore 的文件，验证枚举底册是否如实收录；降级路径（git 不可用）是否响亮声明",
+   "params": [
+    "file_glob"
+   ]
+  },
+  {
+   "id": "PER-REPRO-004",
+   "layer": "PER·复现",
+   "subdomain": "权威件可重建",
+   "title": "权威数据件无重建/校验脚本：条目来源不可追溯，账实对账缺独立裁判",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "repro-authority-no-rebuilder",
+   "source": "自审盲区回写（G9，2026-10-08）：task-104续2 自审实测命中家族固化",
+   "status": "active",
+   "probe": "对权威数据件（池/账本/配置）：是否存在从可数来源重建的脚本；现存脚本重放是否能复原当前态；无重建路径时是否有显式声明",
+   "params": [
+    "file_glob"
    ]
   }
  ]

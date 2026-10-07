@@ -5,11 +5,11 @@
   "desc": "最小可用集：全部 critical ＋ AI 幻觉 API／agent 循环控制两族（最高频致死面）。适用于「先看一眼」的 30 分钟级体检或预算极紧时。",
   "derived_from": {
    "file": "data/checkpoints.json",
-   "template_version": "0.4.0",
-   "sha16": "583958fb419bb9ce"
+   "template_version": "0.4.1",
+   "sha16": "d5838de87f61d9e4"
   },
   "selection_rule": "见 audit/build_pools.py RULES（唯一事实源；重新生成即重放）",
-  "generated_at": "2026-10-07 21:22",
+  "generated_at": "2026-10-07 17:51 UTC",
   "count": 29,
   "by_severity": {
    "critical": 22,
@@ -22,7 +22,7 @@
    "U": 1
   }
  },
- "template_version": "0.4.0",
+ "template_version": "0.4.1",
  "layer_history": "45 → 42（轮6删） → 45（v1.4 安全回归）",
  "checkpoints": [
   {

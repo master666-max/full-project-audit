@@ -7,12 +7,18 @@
 import hashlib
 import json
 import os
+import sys
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FULL = os.path.join(ROOT, "data", "checkpoints.json")
 OUTDIR = os.path.join(ROOT, "data", "pools")
+
+
+def load_json(path):
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
 
 
 def prefix(cid):
@@ -35,7 +41,7 @@ RULES = {
         "pred": lambda c: (
             c["severity_default"] == "critical"
             or prefix(c["id"]) in {
-                "PER-REPRO", "PER-VER",
+                "PER-REPRO", "PER-VER", "MIG-REPLAY",
                 "AIG-CORR", "AIG-HALL", "AIG-DEFE", "AIG-SEC", "AIG-DRIFT", "AIG-DEP",
                 "GEN-SEC", "SEC",
                 "LLM-LOOP", "LLM-ROBUST", "LLM-SEC", "LLM-MCP", "LLM-AGENT", "LLM-GROUND", "LLM-TOOL",
@@ -77,8 +83,9 @@ RULES = {
 
 
 def main():
-    full = json.load(open(FULL, encoding="utf-8"))
-    sha_full = hashlib.sha256(open(FULL, "rb").read()).hexdigest()[:16]
+    full = load_json(FULL)
+    with open(FULL, "rb") as f:
+        sha_full = hashlib.sha256(f.read()).hexdigest()[:16]
     os.makedirs(OUTDIR, exist_ok=True)
     ids_all = {c["id"] for c in full["checkpoints"]}
     print(f"全量池: {full['template_version']} / {len(ids_all)} 条 / sha={sha_full}")
@@ -95,7 +102,7 @@ def main():
                                  "template_version": full["template_version"],
                                  "sha16": sha_full},
                 "selection_rule": "见 audit/build_pools.py RULES（唯一事实源；重新生成即重放）",
-                "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
                 "count": len(picked),
                 "by_severity": dict(Counter(c["severity_default"] for c in picked)),
                 "by_verification": dict(Counter(c["verification"] for c in picked)),
@@ -105,24 +112,36 @@ def main():
             "checkpoints": picked,
         }
         path = os.path.join(OUTDIR, f"{pool_id}.json")
-        json.dump(out, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False, indent=1)
         print(f"  {pool_id:9s} -> {len(picked):3d} 条  {out['_pool']['by_severity']}")
     # 回读校验
     for pool_id in RULES:
-        d = json.load(open(os.path.join(OUTDIR, f"{pool_id}.json"), encoding="utf-8"))
+        d = load_json(os.path.join(OUTDIR, f"{pool_id}.json"))
         assert len(d["checkpoints"]) == d["_pool"]["count"]
         assert all(c["id"] in ids_all for c in d["checkpoints"])
+    violations = []
     # 不变式：security ⊆ quick（安全专项必须是快速档的子集，否则快速档漏安全面）
-    sec = {c["id"] for c in json.load(open(os.path.join(OUTDIR, "security.json"), encoding="utf-8"))["checkpoints"]}
-    qk = {c["id"] for c in json.load(open(os.path.join(OUTDIR, "quick.json"), encoding="utf-8"))["checkpoints"]}
+    sec = {c["id"] for c in load_json(os.path.join(OUTDIR, "security.json"))["checkpoints"]}
+    qk = {c["id"] for c in load_json(os.path.join(OUTDIR, "quick.json"))["checkpoints"]}
     viol = sorted(sec - qk)
     print(f"不变式 security⊆quick: {'OK' if not viol else 'VIOLATION ' + str(viol)}")
+    if viol:
+        violations.append(("security⊆quick", viol))
     # 不变式：micro ⊆ quick
-    mi = {c["id"] for c in json.load(open(os.path.join(OUTDIR, "micro.json"), encoding="utf-8"))["checkpoints"]}
+    mi = {c["id"] for c in load_json(os.path.join(OUTDIR, "micro.json"))["checkpoints"]}
     viol2 = sorted(mi - qk)
     print(f"不变式 micro⊆quick: {'OK' if not viol2 else 'VIOLATION ' + str(viol2)}")
-    print("全部回读校验 OK")
+    if viol2:
+        violations.append(("micro⊆quick", viol2))
+    # 自审 T251 修复：不变式违约必须退出非零——旧版打印 VIOLATION 后仍 exit 0、
+    # 收尾照打"全部回读校验 OK"，违约被静默放行
+    if violations:
+        print(f"失败：{len(violations)} 条池不变式违约——退出码 1")
+        return 1
+    print("全部回读校验 OK（不变式零违约）")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

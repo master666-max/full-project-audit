@@ -5,11 +5,11 @@
   "desc": "LLM 应用 14 层全量（prompt/上下文/结构输出/工具/循环/接地/RAG/评估/记忆/成本/观测/韧性/安全/延迟）。适用于 LLM 应用类项目的专项审查。",
   "derived_from": {
    "file": "data/checkpoints.json",
-   "template_version": "0.4.0",
-   "sha16": "583958fb419bb9ce"
+   "template_version": "0.4.1",
+   "sha16": "d5838de87f61d9e4"
   },
   "selection_rule": "见 audit/build_pools.py RULES（唯一事实源；重新生成即重放）",
-  "generated_at": "2026-10-07 21:22",
+  "generated_at": "2026-10-07 17:51 UTC",
   "count": 73,
   "by_severity": {
    "medium": 16,
@@ -23,7 +23,7 @@
    "A": 4
   }
  },
- "template_version": "0.4.0",
+ "template_version": "0.4.1",
  "layer_history": "45 → 42（轮6删） → 45（v1.4 安全回归）",
  "checkpoints": [
   {

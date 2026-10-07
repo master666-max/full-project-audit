@@ -5,26 +5,26 @@
   "desc": "AI 生成代码 6 层＋个人工程 3 层（正确性/幻觉 API/防御缺失/安全幻觉/重复漂移/依赖失控＋可维护/复现/版本）。适用于 AI 大量产码的项目审查。",
   "derived_from": {
    "file": "data/checkpoints.json",
-   "template_version": "0.4.0",
-   "sha16": "583958fb419bb9ce"
+   "template_version": "0.4.1",
+   "sha16": "d5838de87f61d9e4"
   },
   "selection_rule": "见 audit/build_pools.py RULES（唯一事实源；重新生成即重放）",
-  "generated_at": "2026-10-07 21:22",
-  "count": 34,
+  "generated_at": "2026-10-07 17:51 UTC",
+  "count": 35,
   "by_severity": {
    "high": 14,
-   "medium": 15,
+   "medium": 16,
    "critical": 2,
    "low": 3
   },
   "by_verification": {
    "S": 24,
-   "R": 7,
+   "R": 8,
    "A": 2,
    "U": 1
   }
  },
- "template_version": "0.4.0",
+ "template_version": "0.4.1",
  "layer_history": "45 → 42（轮6删） → 45（v1.4 安全回归）",
  "checkpoints": [
   {
@@ -574,6 +574,21 @@
    "params": [
     "file_glob",
     "secret_file_patterns"
+   ]
+  },
+  {
+   "id": "PER-REPRO-004",
+   "layer": "PER·复现",
+   "subdomain": "权威件可重建",
+   "title": "权威数据件无重建/校验脚本：条目来源不可追溯，账实对账缺独立裁判",
+   "verification": "R",
+   "severity_default": "medium",
+   "defect_class": "repro-authority-no-rebuilder",
+   "source": "自审盲区回写（G9，2026-10-08）：task-104续2 自审实测命中家族固化",
+   "status": "active",
+   "probe": "对权威数据件（池/账本/配置）：是否存在从可数来源重建的脚本；现存脚本重放是否能复原当前态；无重建路径时是否有显式声明",
+   "params": [
+    "file_glob"
    ]
   }
  ]

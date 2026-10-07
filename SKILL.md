@@ -17,8 +17,10 @@ description: Use when 用户要求对某个 AI 工程做一次性全项目审查
 
 - 原始仓库只读；证据行号只认原始仓库；FIX-VERIFIED-ON-COPY 不改 FAIL 判定。
 - 密钥纪律（D-004）：安全发现只写位置＋类型＋脱敏指纹，原始密钥值禁止写入任何文件。
-- 快照：每个任务携带 commit 快照；批次执行前校验 HEAD，漂移则受影响任务作废重排。
+- 快照：每个任务携带 commit 快照；批次执行前校验 HEAD，漂移则受影响任务作废重排（NO-GIT 任务列为不可核验，不构成漂移证据）。
 - 完成由对账定义：对账不平，不得收尾。
+- 执行型重跑依赖 bash（Windows 用 Git Bash）；无 bash 时 rerun 报 UNVERIFIED，不判 PASS 也不崩。
+- 派发注意：子代理并发 ≤3（账号限流实测）；报告判定词与审计器词表一致（阳性/阴性/命中/未命中/N/A）。
 
 ## 五阶段
 
@@ -36,18 +38,18 @@ description: Use when 用户要求对某个 AI 工程做一次性全项目审查
 4. 动态证据四元组＋诚实降级三态（RUNTIME-UNVERIFIED / DEFERRED / SKIP-HUMAN，禁止冒充 PASS）；
 5. 副本铁律（实验＝commit＋patch.diff＋setup.sh＋log，副本弃）。
 
-## 审计关注点（七项；【】内为实现状态，v0.2.1 如实标注）
+## 审计关注点（七项；【】内为实现状态，v0.4.1 如实标注）
 
-计数对账【已实现】｜文件覆盖断言【已实现】＋缺陷类覆盖断言【待实现】｜风险加权抽验·盲法【模板已备，流程待实现】｜执行型重跑【待实现】｜边界带矩阵【待实现】｜判级一致性【周期性体检启用，未实现】｜悬置台账【周期性启用；一次性体检交付悬置清单，未实现】。
+计数对账【已实现】｜文件＋缺陷类双重覆盖断言【已实现】｜风险加权抽验·盲法【已实现（sample 命令＋盲判流程；自审实测）】｜执行型重跑【已实现（rerun --confirm；rc 入判据，无 bash 报 UNVERIFIED）】｜边界带矩阵【已实现（boundary；--strict 可升严）】｜判级一致性【周期性体检启用，未实现】｜悬置台账【周期性启用；一次性体检交付悬置清单，未实现】。
 
 ## 资产与脚本
 
-- `${CLAUDE_SKILL_DIR}/data/checkpoints.json`：检查点库全量池（214 条；层×子域×验法 S/R/A/U；security-* 对齐 CWE）。
-- `${CLAUDE_SKILL_DIR}/data/pools/`：池家族（拔插式——给脚本 `--data` 换池即换档）：micro 29（进门级）｜quick 117（快速通用）｜security 55（安全专项）｜llm-app 73｜agentic 25｜ai-code 34。
+- `${CLAUDE_SKILL_DIR}/data/checkpoints.json`：检查点库全量池（v0.4.1，222 条；层×子域×验法 S/R/A/U；security-* 对齐 CWE；含自审盲区回写条目）。
+- `${CLAUDE_SKILL_DIR}/data/pools/`：池家族（拔插式——给脚本 `--data` 换池即换档）：micro 29（进门级）｜quick 122（快速通用）｜security 55（安全专项）｜llm-app 73｜agentic 25｜ai-code 35。
 - `${CLAUDE_SKILL_DIR}/data/severity-anchors.json`：严重度锚定集 v1.0（已冻结；定级对照）。
 - `${CLAUDE_SKILL_DIR}/scripts/enumerate.py`：枚举器八子命令（files｜entry｜env｜tools｜prompts｜deps｜intent｜sinks）。
-- `${CLAUDE_SKILL_DIR}/scripts/generate_tasks.py`：任务生成（AMR v1）。
-- `${CLAUDE_SKILL_DIR}/scripts/audit.py`：对账器（reconcile｜coverage｜sample｜rerun｜boundary｜suspension）。
+- `${CLAUDE_SKILL_DIR}/scripts/generate_tasks.py`：任务生成（AMR v1.5；`--pool-mode single` 适配工具型中小仓）。
+- `${CLAUDE_SKILL_DIR}/scripts/audit.py`：对账器九子命令（reconcile｜coverage｜pool-lint｜boundary｜drift｜fields｜sample｜rerun｜metrics；fields `--repo` 逐条校验报告引用的 file:line 存在性）。
 - `${CLAUDE_SKILL_DIR}/templates/`：batch-report / experiment 五件套 / blind-review。
 
 运行方式：`py -X utf8 <脚本路径> <子命令> …`（零第三方依赖）。

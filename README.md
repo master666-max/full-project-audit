@@ -2,7 +2,7 @@
 
 一次性**全项目体检**技能：把一个项目里真实存在的问题**找全、判准、说清**，产出带证据链、可复核的问题清单。
 
-> 本仓库是方法论工件：检查点库（214 条）＋ 可拔插池家族 ＋ 零依赖脚本 ＋ 报告模板。
+> 本仓库是方法论工件：检查点库（全量 222 条）＋ 可拔插池家族 ＋ 零依赖脚本 ＋ 报告模板。
 > 适用的运行环境：支持 Agent Skills 的编码代理（Claude Code / ZCode 等）。
 
 ## 是什么
@@ -11,13 +11,13 @@
 - **池家族**（共 7 名，`data/pools/` 内 6 个派生件＋权威源）——由全量池机械派生（`scripts/build_pools.py` 可直接重建），`--data` 换池即换档：
   | 池 | 条数 | 定位 |
   |---|---|---|
-  | **full（全量）** | **214** | 唯一权威源 ＝ `data/checkpoints.json`（家族 0 号，其余皆由它派生） |
+  | **full（全量）** | **222** | 唯一权威源 ＝ `data/checkpoints.json`（家族 0 号，其余皆由它派生） |
   | micro | 29 | 进门级快速体检 |
-  | quick | 117 | 通用快速审查 |
+  | quick | 122 | 通用快速审查 |
   | security | 55 | 安全专项 |
   | llm-app | 73 | LLM 应用专项 |
   | agentic | 25 | 多代理/MCP 专项 |
-  | ai-code | 34 | AI 生成代码专项 |
+  | ai-code | 35 | AI 生成代码专项 |
 - **三件套脚本**（零第三方依赖）：`enumerate.py`（八子命令前置解剖）、`generate_tasks.py`（原子任务生成）、`audit.py`（对账与覆盖断言）。
 - **模板**：batch-report（证据五元组）、experiment 五件套、盲判记录。
 
@@ -25,7 +25,7 @@
 
 ```bash
 py -X utf8 scripts/enumerate.py files --root <项目> --out enumeration/files.jsonl
-py -X utf8 scripts/generate_tasks.py --data data/checkpoints.json --enum enumeration/files.jsonl --out-dir .
+py -X utf8 scripts/generate_tasks.py --data data/checkpoints.json --enum-dir enumeration --out-dir .
 py -X utf8 scripts/audit.py reconcile --tasks tasks.jsonl --enum enumeration/files.jsonl
 py -X utf8 scripts/audit.py coverage  --tasks tasks.jsonl --data data/checkpoints.json
 py -X utf8 scripts/audit.py --self-test

@@ -7,7 +7,8 @@ v1.5（落地工单 W1-2）：
   - 台账列：target_source（语义/意图/热区/池化）、intent_refs。
 用法:
   py -X utf8 generate_tasks.py --data ../data/checkpoints.json --enum-dir enumeration \\
-      --out-dir . --max-tasks 300 [--max-targets 8]
+      --out-dir . [--max-tasks 300（下钻）] [--max-pools 0（池）] [--max-targets 8]
+上限分层（自审 T072 修正）：--max-tasks 只约束语义下钻；池=粗筛强制层不受它截断，池数用 --max-pools 管。
 """
 import argparse
 import glob as _glob
@@ -68,13 +69,20 @@ def fallback_keywords(word):
 
 
 def load_jsonl(p):
+    """响亮失败：底册文件缺失=SystemExit（自审 T074：静默返回 [] 曾产出 175 个零锚点任务
+    且 exit 0——「空底册」被伪装成「一切正常」）。空文件合法（该面无命中）。"""
+    if not os.path.exists(p):
+        raise SystemExit(f"枚举底册缺失: {p}——先跑 enumerate.py 对应子命令（八器全集见 README）")
     rows = []
-    if p and os.path.exists(p):
-        with open(p, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    rows.append(json.loads(line))
+    with open(p, encoding="utf-8") as f:
+        for i, line in enumerate(f, 1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError as e:
+                raise SystemExit(f"{p}:{i}: JSONL 解析失败: {e}")
     return rows
 
 
@@ -153,11 +161,14 @@ def resolve_params_targets(params, enum, max_targets):
 
 
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(allow_abbrev=False,
+                                 description="原子任务生成 v1.5（前缀缩写关闭——README 曾因 --enum 被吞进 --enum-dir 静默产出空底册，自审 T200）")
     ap.add_argument("--data", required=True)
     ap.add_argument("--enum-dir", required=True)
     ap.add_argument("--out-dir", required=True)
-    ap.add_argument("--max-tasks", type=int, default=300)
+    ap.add_argument("--max-tasks", type=int, default=300,
+                    help="下钻任务上限（只管 Tier2；池为粗筛强制层，不受此限——自审 T072 修正）")
+    ap.add_argument("--max-pools", type=int, default=0, help="池任务上限（0=不限；多模块大库防池爆炸）")
     ap.add_argument("--max-targets", type=int, default=8)
     ap.add_argument("--churn-topk", type=int, default=3)
     ap.add_argument("--repo", default=None, help="快照来源目录（默认=out-dir；被审项目与产出目录分离时必填）")
@@ -174,7 +185,7 @@ def main():
     intent_refs = [r["file"] for r in enum.get("intent", [])][:8]
     try:
         snap = subprocess.run(["git", "rev-parse", "HEAD"], cwd=args.repo or args.out_dir,
-                              capture_output=True, timeout=15)
+                              capture_output=True, timeout=GIT_SNAP_TIMEOUT)
         snapshot = snap.stdout.decode().strip() if snap.returncode == 0 else "NO-GIT"
     except Exception:
         snapshot = "NO-GIT"
@@ -199,53 +210,14 @@ def main():
         task["intent_refs"] = intent_refs
         tasks.append(task)
 
-    # Tier1 池化：module 模式按（层×模块）分池；single 模式每层一池（全文件集）
+    # Tier1+Tier2 构建（分层上限：--max-tasks 只管下钻；池数由 --max-pools 管——
+    # 自审 T072：旧版池段吃满 cap 把下钻半边静默切到 0）
     use_modules = (len(modules) > 1) and args.pool_mode == "module"
-    for layer, cids in sorted(by_layer.items()):
-        if use_modules:
-            for m in modules:
-                mf = [f for f in files if module_of(f) == m]
-                add({"_tag": "POOL", "tier": 1, "layer": layer, "module": m,
-                     "checkpoint_ids": cids,
-                     "targets": [{"file": f, "line": 0, "kind": "file", "source": "pool-module"} for f in mf],
-                     "target_source": "池化", "pool_result": "未跑",
-                     "expected_format": "五元组+反证记录（池化筛查：本模块阴性一次排除→标阴性；阳性→列命中项）"})
-        else:
-            # single 模式定位中小仓：落显式文件目标，semantic 完备性断言才有牙（<ALL> 会让断言失明，自审实录）
-            add({"_tag": "POOL", "tier": 1, "layer": layer, "module": modules[0] if modules else "ROOT",
-                 "checkpoint_ids": cids,
-                 "targets": [{"file": f, "line": 0, "kind": "file", "source": "pool-all"} for f in files],
-                 "target_source": "池化", "pool_result": "未跑",
-                 "expected_format": "五元组+反证记录（池化筛查：阴性一次排除→标阴性；阳性→列命中项）"})
-
-    # Tier2 语义下钻：三级优先
-    order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-    drills = 0
-    for c in sorted(active, key=lambda x: order.get(x["severity_default"], 4)):
-        if len(tasks) >= args.max_tasks:
-            break
-        sem, gate = resolve_params_targets(c.get("params"), enum, args.max_targets)
-        if gate:
-            continue  # gated：语言面不存在，任务整体跳过（理由可查）
-        if sem:
-            for i in range(0, len(sem), args.max_targets):
-                chunk = sem[i:i + args.max_targets]
-                add({"_tag": "SEM", "tier": 2, "layer": c["layer"], "module": "ROOT",
-                     "checkpoint_ids": [c["id"]], "targets": chunk,
-                     "target_source": "语义", "pool_result": "",
-                     "expected_format": "五元组+反证记录（语义下钻：单检查点对语义锚点逐行判）"})
-                drills += 1
-                if len(tasks) >= args.max_tasks:
-                    break
-            continue
-        # fallback：热区
-        if c["severity_default"] in ("critical", "high"):
-            top = sorted(files, key=lambda p: churn.get(p, 0), reverse=True)[:args.churn_topk]
-            add({"_tag": "HOT", "tier": 2, "layer": c["layer"], "module": "ROOT",
-                 "checkpoint_ids": [c["id"]],
-                 "targets": [{"file": f, "line": 0, "kind": "file", "source": "hot-fallback"} for f in top],
-                 "target_source": "热区", "pool_result": "",
-                 "expected_format": "五元组+反证记录（热区 fallback：本检查点无语义锚点，按变更热区判）"})
+    pool_tasks, pools_trunc = build_pool_tasks(by_layer, files, modules, module_of, use_modules, args.max_pools)
+    drill_tasks, drills = build_drill_tasks(active, enum, files, churn,
+                                            args.max_targets, args.churn_topk, args.max_tasks)
+    for t in pool_tasks + drill_tasks:
+        add(t)
 
     cid_tasks = {}
     for t in tasks:
@@ -264,9 +236,73 @@ def main():
           f"- 池阴性率台账：填入各 POOL 任务的 pool_result（阴性一次排除=池化有效性的直接度量）", ""]
     with open(os.path.join(args.out_dir, "atomic-tasks.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(md) + "\n")
-    print(f"tasks={len(tasks)} pools={sum(1 for t in tasks if t['tier']==1)} drills={drills} "
+    print(f"tasks={len(tasks)} pools={len(pool_tasks)}{'(截断!)' if pools_trunc else ''} drills={drills} "
           f"src={src_count} active={len(active)} uncovered={len(uncovered)} modules={modules}")
     return 1 if uncovered else 0
+
+
+GIT_SNAP_TIMEOUT = 15  # 秒；快照读取上限
+
+
+def build_pool_tasks(by_layer, files, modules, module_of, use_modules, max_pools):
+    """Tier1 池化任务（不含 task_id）。返回 (tasks, truncated)。"""
+    out, n = [], 0
+    for layer, cids in sorted(by_layer.items()):
+        if use_modules:
+            for m in modules:
+                if max_pools and n >= max_pools:
+                    return out, True
+                mf = [f for f in files if module_of(f) == m]
+                out.append({"_tag": "POOL", "tier": 1, "layer": layer, "module": m,
+                            "checkpoint_ids": cids,
+                            "targets": [{"file": f, "line": 0, "kind": "file", "source": "pool-module"} for f in mf],
+                            "target_source": "池化", "pool_result": "未跑",
+                            "expected_format": "五元组+反证记录（池化筛查：本模块阴性一次排除→标阴性；阳性→列命中项）"})
+                n += 1
+        else:
+            # single 模式定位中小仓：落显式文件目标，semantic 完备性断言才有牙（<ALL> 会让断言失明，自审实录）
+            if max_pools and n >= max_pools:
+                return out, True
+            out.append({"_tag": "POOL", "tier": 1, "layer": layer, "module": modules[0] if modules else "ROOT",
+                        "checkpoint_ids": cids,
+                        "targets": [{"file": f, "line": 0, "kind": "file", "source": "pool-all"} for f in files],
+                        "target_source": "池化", "pool_result": "未跑",
+                        "expected_format": "五元组+反证记录（池化筛查：阴性一次排除→标阴性；阳性→列命中项）"})
+            n += 1
+    return out, False
+
+
+def build_drill_tasks(active, enum, files, churn, max_targets, churn_topk, max_drills):
+    """Tier2 语义下钻＋热区 fallback（不含 task_id）。max_drills 只约束下钻半边。"""
+    out = []
+    order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    drills = 0
+    for c in sorted(active, key=lambda x: order.get(x["severity_default"], 4)):
+        if drills >= max_drills:
+            break
+        sem, gate = resolve_params_targets(c.get("params"), enum, max_targets)
+        if gate:
+            continue  # gated：语言面不存在，任务整体跳过（理由可查）
+        if sem:
+            for i in range(0, len(sem), max_targets):
+                chunk = sem[i:i + max_targets]
+                out.append({"_tag": "SEM", "tier": 2, "layer": c["layer"], "module": "ROOT",
+                            "checkpoint_ids": [c["id"]], "targets": chunk,
+                            "target_source": "语义", "pool_result": "",
+                            "expected_format": "五元组+反证记录（语义下钻：单检查点对语义锚点逐行判）"})
+                drills += 1
+                if drills >= max_drills:
+                    break
+            continue
+        # fallback：热区
+        if c["severity_default"] in ("critical", "high"):
+            top = sorted(files, key=lambda p: churn.get(p, 0), reverse=True)[:churn_topk]
+            out.append({"_tag": "HOT", "tier": 2, "layer": c["layer"], "module": "ROOT",
+                        "checkpoint_ids": [c["id"]],
+                        "targets": [{"file": f, "line": 0, "kind": "file", "source": "hot-fallback"} for f in top],
+                        "target_source": "热区", "pool_result": "",
+                        "expected_format": "五元组+反证记录（热区 fallback：本检查点无语义锚点，按变更热区判）"})
+    return out, drills
 
 
 if __name__ == "__main__":

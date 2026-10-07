@@ -5,11 +5,11 @@
   "desc": "安全散点全量（CWE 对齐）＋通用/AI/LLM 安全层＋MCP 与 agentic 安全面（含致命三要素）。适用于发布前安全快检或安全聚焦复审。",
   "derived_from": {
    "file": "data/checkpoints.json",
-   "template_version": "0.4.0",
-   "sha16": "583958fb419bb9ce"
+   "template_version": "0.4.1",
+   "sha16": "d5838de87f61d9e4"
   },
   "selection_rule": "见 audit/build_pools.py RULES（唯一事实源；重新生成即重放）",
-  "generated_at": "2026-10-07 21:22",
+  "generated_at": "2026-10-07 17:51 UTC",
   "count": 55,
   "by_severity": {
    "medium": 8,
@@ -23,7 +23,7 @@
    "A": 1
   }
  },
- "template_version": "0.4.0",
+ "template_version": "0.4.1",
  "layer_history": "45 → 42（轮6删） → 45（v1.4 安全回归）",
  "checkpoints": [
   {

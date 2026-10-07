@@ -25,7 +25,7 @@ def load_jsonl(p):
 
 
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(allow_abbrev=False)
     ap.add_argument("--enum-dir", required=True)
     ap.add_argument("--out", default=None)
     args = ap.parse_args()

@@ -18,13 +18,17 @@ SKIP_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv", "dist", "bu
              ".mypy_cache", ".pytest_cache", ".idea", ".vscode", "attic"}
 TEXT_EXT = {".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg",
             ".sh", ".js", ".ts", ".tsx", ".jsx", ".html", ".css", ".sql", ".env", ".example"}
+READ_LIMIT = 2 * 1024 * 1024   # 字节；文本读入上限（防巨文件拖爆扫描）
+GIT_LS_TIMEOUT = 30
+GIT_LOG_TIMEOUT = 60
 
 
 def iter_files(root):
-    """git（含未跟踪）优先，空结果或失败退化为 os.walk——未跟踪的 AI 新文件是审查重点。"""
+    """git（含未跟踪）优先，空结果或失败退化为 os.walk——未跟踪的 AI 新文件是审查重点。
+    降级必须响亮（自审 T197/T094：静默换口径会改写枚举面的完备性含义）。"""
     try:
         out = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
-                             cwd=root, capture_output=True, timeout=30)
+                             cwd=root, capture_output=True, timeout=GIT_LS_TIMEOUT)
         if out.returncode == 0:
             # -z：禁 core.quotepath 把中文路径转义为八进制串——转义串 isfile 判否→静默丢件（自审实录）
             names = [l for l in out.stdout.decode("utf-8", "replace").split("\0") if l.strip()]
@@ -34,8 +38,10 @@ def iter_files(root):
                     if os.path.isfile(p):
                         yield line.replace("\\", "/")
                 return
-    except Exception:
-        pass
+        print(f"[enumerate] git ls-files 失败(rc={out.returncode})——降级 os.walk，"
+              f"被 .gitignore 排除的面不进底册（完备性口径已变）", file=sys.stderr)
+    except Exception as e:
+        print(f"[enumerate] git 不可用（{e}）——降级 os.walk，枚举面口径已变", file=sys.stderr)
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
         for fn in filenames:
@@ -44,7 +50,7 @@ def iter_files(root):
             yield rel
 
 
-def read_text(path, limit=2 * 1024 * 1024):
+def read_text(path, limit=READ_LIMIT):
     try:
         if os.path.getsize(path) > limit:
             return None
@@ -58,7 +64,7 @@ def churn_map(root, depth=200):
     """近 depth 次提交的文件改动频次。"""
     try:
         out = subprocess.run(["git", "-c", "core.quotepath=false", "log", "--name-only", "--pretty=format:", "-n", str(depth)],
-                             cwd=root, capture_output=True, timeout=60)
+                             cwd=root, capture_output=True, timeout=GIT_LOG_TIMEOUT)
         counts = {}
         for line in out.stdout.decode("utf-8", "replace").splitlines():
             line = line.strip()
@@ -71,21 +77,31 @@ def churn_map(root, depth=200):
 
 def cmd_files(args, root):
     churn = churn_map(root)
-    n = 0
+    n = oversize = 0
     for rel in iter_files(root):
         full = os.path.join(root, rel)
         text = read_text(full)
-        loc = text.count("\n") + 1 if text is not None else -1
+        big = text is None and os.path.isfile(full) and os.path.getsize(full) > READ_LIMIT
+        loc = (text.count("\n") + 1) if text is not None else (-2 if big else -1)
         sha = ""
         try:
             with open(full, "rb") as f:
                 sha = hashlib.sha256(f.read(1 << 20)).hexdigest()[:12]
         except Exception:
             pass
+        # 超限文件必须留在底册（自审 T074：3MiB 文件曾对六类底册静默失明）——
+        # oversize 标记=内容未被扫描，文件本身在账（对账/覆盖仍认它）
+        if big:
+            oversize += 1
+            print(f"[enumerate] 超限未扫（>{READ_LIMIT//1024//1024}MiB）: {rel}", file=sys.stderr)
         yield {"kind": "file", "key": rel, "file": rel, "line": 0,
-               "meta": {"loc": loc, "sha": sha, "churn": churn.get(rel, 0)}}
+               "meta": {"loc": loc, "sha": sha, "churn": churn.get(rel, 0),
+                        **({"oversize": True} if big else {})}}
         n += 1
-    print(f"files: {n}")
+    if oversize:
+        print(f"files: {n}（含超限 {oversize} 件——已入底册、内容未扫）")
+    else:
+        print(f"files: {n}")
 
 
 def _scan_lines(root, yield_fn):

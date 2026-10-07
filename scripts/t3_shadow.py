@@ -24,7 +24,8 @@ def load_ledger(p):
 
 
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(allow_abbrev=False,
+                                 description="T3 影子停机（不驱动停机；价值权重未校准——自审 12 批真值下 EVI 全程>0，待下轮预注册重定基）")
     ap.add_argument("--ledger", required=True)
     ap.add_argument("--out", default=".")
     ap.add_argument("--v-crit", type=float, default=100)

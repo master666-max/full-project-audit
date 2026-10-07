@@ -6,6 +6,7 @@
 """
 import argparse
 import os
+import re
 import shutil
 import sys
 
@@ -27,13 +28,16 @@ def write_if_absent(path, content):
 
 
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(allow_abbrev=False)
     ap.add_argument("--out", required=True)
     ap.add_argument("--date", required=True)
     ap.add_argument("--mode", default="FULL", choices=["FULL", "TRIMMED", "CUSTOM"])
     ap.add_argument("--grade", default="SEMI", choices=["GOLD", "SEMI", "REGRESSION", "SMOKE"])
     ap.add_argument("--template-version", default="read from pool")
     args = ap.parse_args()
+    # 日期硬校验（自审 T240：--date 无格式校验曾直接拼路径造出目录错置）
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", args.date):
+        raise SystemExit(f"--date 必须是 YYYY-MM-DD（实参不安全: {args.date!r}）")
 
     root = os.path.join(args.out, f"review-{args.date}")
     for d in SUBDIRS:
