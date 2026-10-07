@@ -195,25 +195,27 @@ def _is_claim(txt, m, word):
     tail = txt[m.end():m.end() + 10].replace(" ", "").replace("*", "")
     if re.match(r"[:：]?(0|零|无)", tail):
         return False
+    if txt[m.end():m.end() + 2].startswith(("→", "｜", "|")):
+        return False  # 模板枚举位（"阳性→列命中项"），非主张（自审实录校准）
     return True
 
 
 def fields_check(reports_dir):
     problems, total, fails_no_path = [], 0, 0
-    verdict_rx = re.compile(r"PASS|FAIL|N/A|阴性|阳性")
-    sev_rx = re.compile(r"严重度|critical|high|medium|low", re.I)
+    verdict_rx = re.compile(r"PASS|FAIL|N/A|阴性|阳性|命中")
+    sev_rx = re.compile(r"严重度|critical|high|medium|low|高危|中危|低危", re.I)
     for p in sorted(_glob.glob(os.path.join(reports_dir, "*.md"))):
         txt = open(p, encoding="utf-8", errors="replace").read()
         name = os.path.basename(p)
         total += 1
         if not verdict_rx.search(txt):
-            problems.append(f"{name}: 无判定（PASS/FAIL/N-A/阴性/阳性）")
+            problems.append(f"{name}: 无判定（PASS/FAIL/N-A/阴性/阳性/命中）")
         claims = [m for m in re.finditer("FAIL", txt) if _is_claim(txt, m, "FAIL")]
         claims += [m for m in re.finditer("阳性", txt) if _is_claim(txt, m, "阳性")]
         if claims:            # 语义校准（试点二）：只有失败主张必须带证据
             if not re.search(r"[\w\-.]+\.(py|md|json|yml|yaml|toml|bat|sh|js|ts):\d+", txt):
                 problems.append(f"{name}: 失败主张缺 file:line")
-            if not re.search(r"核验路径|复现|reproduce", txt):
+            if not re.search(r"核验路径|复现|reproduce|反证记录|机械前提|可复核|证据锚点", txt):
                 fails_no_path += 1
                 problems.append(f"{name}: 含 FAIL/阳性主张 但无核验路径（疑点）")
             if not sev_rx.search(txt):

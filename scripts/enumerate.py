@@ -23,10 +23,11 @@ TEXT_EXT = {".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml", ".ini", ".c
 def iter_files(root):
     """git（含未跟踪）优先，空结果或失败退化为 os.walk——未跟踪的 AI 新文件是审查重点。"""
     try:
-        out = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+        out = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
                              cwd=root, capture_output=True, timeout=30)
         if out.returncode == 0:
-            names = [l for l in out.stdout.decode("utf-8", "replace").splitlines() if l.strip()]
+            # -z：禁 core.quotepath 把中文路径转义为八进制串——转义串 isfile 判否→静默丢件（自审实录）
+            names = [l for l in out.stdout.decode("utf-8", "replace").split("\0") if l.strip()]
             if names:
                 for line in names:
                     p = os.path.join(root, line)
@@ -56,7 +57,7 @@ def read_text(path, limit=2 * 1024 * 1024):
 def churn_map(root, depth=200):
     """近 depth 次提交的文件改动频次。"""
     try:
-        out = subprocess.run(["git", "log", "--name-only", "--pretty=format:", "-n", str(depth)],
+        out = subprocess.run(["git", "-c", "core.quotepath=false", "log", "--name-only", "--pretty=format:", "-n", str(depth)],
                              cwd=root, capture_output=True, timeout=60)
         counts = {}
         for line in out.stdout.decode("utf-8", "replace").splitlines():

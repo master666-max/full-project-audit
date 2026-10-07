@@ -161,6 +161,8 @@ def main():
     ap.add_argument("--max-targets", type=int, default=8)
     ap.add_argument("--churn-topk", type=int, default=3)
     ap.add_argument("--repo", default=None, help="快照来源目录（默认=out-dir；被审项目与产出目录分离时必填）")
+    ap.add_argument("--pool-mode", default="module", choices=["module", "single"],
+                    help="池粒度：module=层×模块（默认，多模块大库）；single=层×全库（目录即模块的工具型项目，防池爆炸）")
     args = ap.parse_args()
 
     doc, active = load_pool(args.data)
@@ -197,9 +199,10 @@ def main():
         task["intent_refs"] = intent_refs
         tasks.append(task)
 
-    # Tier1 池化：模块数>1 时按（层×模块）分池，否则每层一池（全文件集）
+    # Tier1 池化：module 模式按（层×模块）分池；single 模式每层一池（全文件集）
+    use_modules = (len(modules) > 1) and args.pool_mode == "module"
     for layer, cids in sorted(by_layer.items()):
-        if len(modules) > 1:
+        if use_modules:
             for m in modules:
                 mf = [f for f in files if module_of(f) == m]
                 add({"_tag": "POOL", "tier": 1, "layer": layer, "module": m,
@@ -208,8 +211,10 @@ def main():
                      "target_source": "池化", "pool_result": "未跑",
                      "expected_format": "五元组+反证记录（池化筛查：本模块阴性一次排除→标阴性；阳性→列命中项）"})
         else:
+            # single 模式定位中小仓：落显式文件目标，semantic 完备性断言才有牙（<ALL> 会让断言失明，自审实录）
             add({"_tag": "POOL", "tier": 1, "layer": layer, "module": modules[0] if modules else "ROOT",
-                 "checkpoint_ids": cids, "targets": ["<ALL>"],
+                 "checkpoint_ids": cids,
+                 "targets": [{"file": f, "line": 0, "kind": "file", "source": "pool-all"} for f in files],
                  "target_source": "池化", "pool_result": "未跑",
                  "expected_format": "五元组+反证记录（池化筛查：阴性一次排除→标阴性；阳性→列命中项）"})
 
