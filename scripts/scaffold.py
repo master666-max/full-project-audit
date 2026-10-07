@@ -66,8 +66,19 @@ def main():
     for name, st in acted:
         print(f"  {st:22s} {name}")
     print(f"SCAFFOLD OK -> {root}")
+    import runlog
+    runlog.append(root, {"script": "scaffold.py", "argv": sys.argv[1:], "rc": 0,
+                         "counts": {"tree": root, "wrote": sum(1 for _, st in acted if st.startswith("wrote"))}})
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except BaseException as e:
+        import runlog, os
+        runlog.append(os.getcwd(), {"script": "scaffold.py", "argv": sys.argv[1:], "rc": 1,
+                                    "error": f"{type(e).__name__}: {e}", "counts": {}})
+        raise

@@ -272,6 +272,34 @@ def _check_citations(txt, repo, broken):
             broken.append(f"{rel}:{ln}（越界，文件仅 {nlines} 行）")
 
 
+def _check_excerpts(cites, repo, broken):
+    """摘录真实性（P2#6）：sidecar citation 带 excerpt 时，摘录去空白后的前 12 字必须
+    出现在被引行——格式完美内容编造的"虚构摘录"抓现行。"""
+    if not repo:
+        return
+    for c in cites:
+        if not isinstance(c, dict):
+            continue
+        ex = str(c.get("excerpt", "")).strip()
+        rel = str(c.get("file", "")).replace("\\", "/")
+        try:
+            ln = int(c.get("line", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+        if not ex or not rel or ln < 1:
+            continue
+        fp = os.path.join(repo, rel)
+        if not os.path.isfile(fp):
+            continue
+        with open(fp, "rb") as f:
+            lines = f.read().decode("utf-8", errors="replace").splitlines()
+        if ln > len(lines):
+            continue
+        key = "".join(ex.split())[:12]
+        if key and key not in "".join(lines[ln - 1].split()):
+            broken.append(f"{rel}:{ln}（摘录与被引行不符）")
+
+
 def fields_check(reports_dir, repo=None):
     problems, total, fails_no_path = [], 0, 0
     broken = []
@@ -281,16 +309,23 @@ def fields_check(reports_dir, repo=None):
         txt = open(p, encoding="utf-8", errors="replace").read()
         name = os.path.basename(p)
         total += 1
-        # 结构化 sidecar（<同名>.json）优先：字段直读，不走词表猜（D-F 终局形态）
+        # 结构化 sidecar（<同名>.json）：verdict 非空才权威；空 stub 回退词表扫 .md
+        # （P1#2：旧逻辑见 stub 就信，审查员填了 md 忘了 json 会全量误报"缺 verdict"）
         side = os.path.splitext(p)[0] + ".json"
+        sc = None
         if os.path.exists(side):
-            with open(side, encoding="utf-8") as f:
-                sc = json.load(f)
-            if not sc.get("verdict"):
-                problems.append(f"{name}: sidecar 缺 verdict")
-            if sc.get("verdict") in ("FAIL", "命中") and not sc.get("severity"):
+            try:
+                with open(side, encoding="utf-8") as f:
+                    sc = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                sc = None
+        if sc and sc.get("verdict"):
+            if sc["verdict"] in ("FAIL", "命中") and not sc.get("severity"):
                 problems.append(f"{name}: sidecar 失败判定缺 severity")
-            _check_citations("\n".join(sc.get("citations", [])), repo, broken)
+            cites = sc.get("citations", [])
+            _check_citations("\n".join(f"{c['file']}:{c.get('line', 0)}" if isinstance(c, dict) else str(c)
+                                       for c in cites), repo, broken)
+            _check_excerpts(cites, repo, broken)
             continue
         if not verdict_rx.search(txt):
             problems.append(f"{name}: 无判定（PASS/FAIL/N-A/阴性/阳性/命中）")
@@ -450,6 +485,64 @@ def cmd_metrics(args):
 
 
 # ---------- 自测 ----------
+# ---------- W3 终报机械校验（终报规范 v2.0 的执行器） ----------
+REQUIRED_SECTIONS = ("档位与等级", "判定分布", "检出率", "组合不确定性", "盲法",
+                     "悬置", "评估觉知", "盲区回写")
+FORBIDDEN_PHRASES = ("整体没事", "层层都过", "万无一失", "绝对安全", "零风险")
+
+
+def final_check(report, tasks, reports_dir=None):
+    problems = []
+    with open(report, encoding="utf-8") as f:
+        txt = f.read()
+    for s in REQUIRED_SECTIONS:
+        if s not in txt:
+            problems.append(f"缺必备节：{s}")
+    for ph in FORBIDDEN_PHRASES:
+        if ph in txt:
+            problems.append(f"禁用措辞：{ph}（组合置信度只能声明衰减，不能宣称豁免）")
+    if "GOLD" not in txt and "全量跑分" in txt:
+        problems.append("非 GOLD 等级不得称「全量跑分」")
+    # 快照一致性：任务集快照必须出现在终报里
+    try:
+        trows = load_jsonl(tasks)
+        snaps = {t.get("snapshot") for t in trows if t.get("snapshot") and t.get("snapshot") != "NO-GIT"}
+        if snaps and not any(s in txt for s in snaps):
+            problems.append("终报未登载任务集快照（可核验性缺失）")
+    except SystemExit as e:
+        problems.append(f"任务集不可读: {e}")
+    # 判定分布对账：终报里的命中数/机械闭环数必须与 batch-reports 聚合一致
+    if reports_dir and os.path.isdir(reports_dir):
+        hits = pool = closed = 0
+        for p in _glob.glob(os.path.join(reports_dir, "*.md")):
+            name = os.path.basename(p)
+            with open(p, encoding="utf-8", errors="replace") as f:
+                t = f.read()
+            if name.endswith("POOL.md") and "pool_result" in t:
+                pool += 1
+            elif "机械关闭（" in t:
+                closed += 1
+            elif re.search(r"verdict[：:]*\**\s*命中", t):
+                hits += 1
+        agg = f"命中 {hits}"
+        if str(hits) not in txt:
+            problems.append(f"终报命中数与报告聚合不符（聚合 {agg}，终报未载该数）")
+        if closed and (str(closed) not in txt):
+            problems.append(f"终报机械闭环数与聚合不符（聚合 {closed}）")
+    # 悬置条款：凡有 RUNTIME-UNVERIFIED，必须附重试条件
+    if "RUNTIME-UNVERIFIED" in txt and "重试条件" not in txt and "重试" not in txt:
+        problems.append("存在 RUNTIME-UNVERIFIED 但未附重试条件（悬置三态须带出口）")
+    d = {"report": os.path.basename(report), "problems": problems}
+    return d, len(problems) == 0
+
+
+def cmd_final_check(args):
+    d, ok = final_check(args.report, args.tasks, args.reports)
+    print(json.dumps(d, ensure_ascii=False, indent=1))
+    print("FINAL-CHECK", "PASS" if ok else "FAIL")
+    return 0 if ok else 1
+
+
 def self_test():
     with tempfile.TemporaryDirectory() as td:
         files = ["a.py", "b.py", "c.py"]
@@ -531,6 +624,39 @@ def selftest_all():
             f.write("real.py:5 PASS 摘录 严重度 low；real.py:999 FAIL；ghost.py:1 FAIL")
         fdc, _ = fields_check(rpr, repo=srcd)
         results.append(("citation 存在性校验", fdc["broken_citations"] == 2))
+        # sidecar 空 stub 回退词表（P1#2）；verdict 非空才权威
+        rep_fb = os.path.join(td, "rep_fb"); os.makedirs(rep_fb)
+        with open(os.path.join(rep_fb, "T1-SEM.md"), "w", encoding="utf-8") as f:
+            f.write("命中 real.py:5 摘录 x 严重度 low")
+        with open(os.path.join(rep_fb, "T1-SEM.json"), "w", encoding="utf-8") as f:
+            json.dump({"verdict": ""}, f)
+        ffb, _ = fields_check(rep_fb, repo=srcd)
+        results.append(("sidecar 空 stub→回退词表不误报",
+                        all("sidecar" not in p for p in ffb["problems"])))
+        rep_sc = os.path.join(td, "rep_sc"); os.makedirs(rep_sc)
+        with open(rep_sc and os.path.join(rep_sc, "T2-SEM.md"), "w", encoding="utf-8") as f:
+            f.write("占位")
+        with open(os.path.join(rep_sc, "T2-SEM.json"), "w", encoding="utf-8") as f:
+            json.dump({"verdict": "命中", "severity": "low",
+                       "citations": [{"file": "real.py", "line": 5, "excerpt": "line5"},
+                                     {"file": "real.py", "line": 6, "excerpt": "凭空捏造的摘录"}]}, f)
+        fsc, _ = fields_check(rep_sc, repo=srcd)
+        results.append(("摘录真实性校验（真过假抓）", fsc["broken_citations"] == 1))
+        # final-check：全节+快照在载→PASS；禁用措辞→FAIL
+        fr = os.path.join(td, "final.md")
+        with open(fr, "w", encoding="utf-8") as f:
+            f.write("## 1. 档位与等级 SEMI\n## 2. 判定分布 命中 3\n## 3. 检出率\n## 4. 组合不确定性\n"
+                    "## 5. 盲法\n## 6. 悬置 RUNTIME-UNVERIFIED 重试条件：补探针后重试\n"
+                    "## 7. 评估觉知\n## 8. 盲区回写\n快照 deadbeef 已核验")
+        tk2 = os.path.join(td, "t.jsonl")
+        with open(tk2, "w", encoding="utf-8") as f:
+            f.write(json.dumps({"task_id": "T1", "snapshot": "deadbeef"}) + "\n")
+        _, okf = final_check(fr, tk2)
+        results.append(("final-check 全节→PASS", okf))
+        with open(fr, "a", encoding="utf-8") as f:
+            f.write("层层都过，整体没事")
+        _, okf2 = final_check(fr, tk2)
+        results.append(("final-check 禁语→FAIL", not okf2))
         # metrics
         mtasks = [{"checkpoint_ids": ["c1"], "targets": [{"file": "a.py", "line": 0, "kind": "file", "source": "s"}]},
                   {"checkpoint_ids": ["c1"], "targets": [{"file": "a.py", "line": 0, "kind": "file", "source": "s"}]}]
@@ -567,33 +693,45 @@ def main():
     p = sub.add_parser("rerun", allow_abbrev=False); p.add_argument("--experiments", required=True); p.add_argument("--confirm", action="store_true")
     p.add_argument("--pick", default="first", choices=["first", "all"])
     p = sub.add_parser("metrics", allow_abbrev=False); p.add_argument("--tasks", required=True); p.add_argument("--enum", required=True)
+    p = sub.add_parser("final-check", allow_abbrev=False,
+                       help="终报机械校验（终报规范 v2.0）：必备节/禁用措辞/快照在载/判定分布对账/悬置出口")
+    p.add_argument("--report", required=True)
+    p.add_argument("--tasks", required=True)
+    p.add_argument("--reports", default=None, help="batch-reports 目录：判定分布交叉对账")
     args = ap.parse_args()
+    global _LOGDIR
+    _LOGDIR = os.path.dirname(os.path.abspath(getattr(args, "tasks", "") or ".")) or os.getcwd()
     if args.self_test:
         return self_test()
     if args.selftest_all:
         return selftest_all()
-    cmd = args.cmd
-    if cmd == "reconcile":
-        return cmd_reconcile(args)
-    if cmd == "coverage":
-        return cmd_coverage(args)
-    if cmd == "pool-lint":
-        return cmd_pool_lint(args)
-    if cmd == "boundary":
-        return cmd_boundary(args)
-    if cmd == "drift":
-        return cmd_drift(args)
-    if cmd == "fields":
-        return cmd_fields(args)
-    if cmd == "sample":
-        return cmd_sample(args)
-    if cmd == "rerun":
-        return cmd_rerun(args)
-    if cmd == "metrics":
-        return cmd_metrics(args)
-    ap.print_help()
-    return 2
+    import time as _time
+    import runlog
+    fn = {"reconcile": cmd_reconcile, "coverage": cmd_coverage, "pool-lint": cmd_pool_lint,
+          "boundary": cmd_boundary, "drift": cmd_drift, "fields": cmd_fields,
+          "sample": cmd_sample, "rerun": cmd_rerun, "metrics": cmd_metrics,
+          "final-check": cmd_final_check}.get(args.cmd)
+    if fn is None:
+        ap.print_help()
+        return 2
+    _t0 = _time.time()
+    ret = fn(args)
+    runlog.append(_LOGDIR, {"script": "audit.py", "argv": sys.argv[1:], "rc": ret,
+                            "duration_ms": int((_time.time() - _t0) * 1000),
+                            "counts": {"cmd": args.cmd}})
+    return ret
+
+
+_LOGDIR = "."
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except BaseException as e:
+        import runlog
+        runlog.append(globals().get("_LOGDIR", "."), {"script": "audit.py", "argv": sys.argv[1:], "rc": 1,
+                      "error": f"{type(e).__name__}: {e}", "counts": {}})
+        raise

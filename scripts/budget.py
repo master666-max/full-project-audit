@@ -31,8 +31,20 @@ def main():
     if args.out:
         with open(args.out, "a", encoding="utf-8") as f:
             f.write(f"- {row}\n- 判定：{suggest}\n")
+    import runlog
+    runlog.append(os.path.dirname(os.path.abspath(args.tasks)) or ".",
+                  {"script": "budget.py", "argv": sys.argv[1:], "rc": 0,
+                   "counts": {"tasks": n, "est_M": round(est / 1e6, 1), "arms": args.arms}})
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except BaseException as e:
+        import runlog, os
+        runlog.append(os.getcwd(), {"script": "budget.py", "argv": sys.argv[1:], "rc": 1,
+                                    "error": f"{type(e).__name__}: {e}", "counts": {}})
+        raise

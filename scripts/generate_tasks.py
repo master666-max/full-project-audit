@@ -174,9 +174,12 @@ def main():
     ap.add_argument("--repo", default=None, help="快照来源目录（默认=out-dir；被审项目与产出目录分离时必填）")
     ap.add_argument("--pool-mode", default="module", choices=["module", "single"],
                     help="池粒度：module=层×模块（默认，多模块大库）；single=层×全库（目录即模块的工具型项目，防池爆炸）")
+    ap.add_argument("--report-skeletons", action="store_true",
+                    help="预生成每任务报告骨架＋sidecar stub 到 <out-dir>/batch-reports/（D-A 词表单源）")
     args = ap.parse_args()
 
     doc, active = load_pool(args.data)
+    cps = {c["id"]: c for c in doc["checkpoints"]}
     enum = {}
     for kind in ("files", "entry", "env", "tools", "prompts", "deps", "intent", "sinks"):
         enum[kind] = load_jsonl(os.path.join(args.enum_dir, f"{kind}.jsonl"))
@@ -236,8 +239,27 @@ def main():
           f"- 池阴性率台账：填入各 POOL 任务的 pool_result（阴性一次排除=池化有效性的直接度量）", ""]
     with open(os.path.join(args.out_dir, "atomic-tasks.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(md) + "\n")
+
+    # 报告骨架预生成（D-A 词表单源：判定枚举由代码给出，代理只填空——消灭「派发词 vs 审计器词表」漂移）
+    if args.report_skeletons:
+        rep_dir = os.path.join(args.out_dir, "batch-reports")
+        os.makedirs(rep_dir, exist_ok=True)
+        na_path = os.path.join(args.enum_dir, "na-prediction.json")
+        na_layers = {}
+        if os.path.exists(na_path):
+            with open(na_path, encoding="utf-8") as f:
+                na_layers = {p["layer"]: p["reason"]
+                             for p in json.load(f).get("predictions", [])}
+        for t in tasks:
+            write_report_skeleton(rep_dir, t, cps, na_layers)
+
     print(f"tasks={len(tasks)} pools={len(pool_tasks)}{'(截断!)' if pools_trunc else ''} drills={drills} "
           f"src={src_count} active={len(active)} uncovered={len(uncovered)} modules={modules}")
+    import runlog
+    runlog.append(args.out_dir, {"script": "generate_tasks.py", "argv": sys.argv[1:], "rc": 0,
+                                 "counts": {"tasks": len(tasks), "pools": len(pool_tasks),
+                                            "drills": drills, "uncovered": len(uncovered),
+                                            "skeletons": 1 if args.report_skeletons else 0}})
     return 1 if uncovered else 0
 
 
@@ -305,5 +327,56 @@ def build_drill_tasks(active, enum, files, churn, max_targets, churn_topk, max_d
     return out, drills
 
 
+def write_report_skeleton(rep_dir, task, cps, na_layers=frozenset()):
+    """D-A 报告骨架 v2：**自足**——probe 文本/验法/默认严重度/语义锚点/G10 预判全部嵌入，
+    审查员每任务只开这一件（v1 曾只写 id，逼三文件交叉引用——注意力扫描 P1#1）。
+    判定词表由代码给死（四选一删未用项）；同名 sidecar stub 同步落盘。"""
+    tid = task["task_id"]
+    cids = task["checkpoint_ids"]
+    na = na_layers.get(task["layer"]) if isinstance(na_layers, dict) else None
+    na_note = ""
+    if na:
+        na_note = (f"**G10 机械预判：本层 N/A——{na}。** 如实复核即可；若推翻预判，"
+                   f"必须附反证记录（预判依据见 enumeration/na-prediction.json）。\n\n")
+    parts = [f"# {tid} ｜ {task['layer']} ｜ ckpt={','.join(cids)}\n"]
+    if na_note:
+        parts.append(na_note)
+    for c in cids:
+        cp = cps.get(c, {})
+        parts.append(f"## 检查点 {c}\n\n- **{cp.get('title', '')}**\n"
+                     f"- 验法 {cp.get('verification', '?')}｜默认严重度 {cp.get('severity_default', '?')}\n"
+                     f"- probe：{cp.get('probe', '')}\n")
+    if task["target_source"] == "池化":
+        parts.append("**pool_result：** （阴性（n/m N/A 或反证）｜阳性（k 命中）｜混合——三选一，删未用项）\n")
+        parts.append("\n## 机械前提（可复核）\n\n全库粗筛（目标=全部底册文件）；检索可自定 grep，"
+                     "语义锚点不适用。\n")
+    else:
+        v = "命中｜未命中（反证）｜N/A｜JUDGMENT-NA"
+        parts.append(f"**verdict：** （{v}——四选一，删未用项）\n")
+        parts.append("**severity：** （critical｜high｜medium｜low——判级先对 data/severity-anchors.json 同型例）\n")
+        parts.append("\n## 锚点核验（逐 target：file:line ＋ 整块摘录 ＋ 判定）\n")
+        for a in task.get("targets", []):
+            parts.append(f"- {a['file']}:{a.get('line', 0)}（{a.get('source', '')}）\n")
+    parts.append("\n## 五元组（命中项）/ 反证记录（未命中项）\n\n"
+                 "## 证据级别：（断言级｜执行级｜复现级——三选一保留）\n\n"
+                 "## 邻域观察\n\n"
+                 "## 证据锚点（file:line 清单）\n")
+    with open(os.path.join(rep_dir, f"{tid}.md"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("".join(parts))
+    side = {"task_id": tid, "layer": task["layer"], "checkpoint_ids": cids,
+            "verdict": "", "severity": "", "citations": [],
+            "pool_result": ""}
+    with open(os.path.join(rep_dir, f"{tid}.json"), "w", encoding="utf-8", newline="\n") as f:
+        json.dump(side, f, ensure_ascii=False, indent=1)
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except BaseException as e:  # 事故也入运行日志（默认产出，含失败）
+        import runlog
+        runlog.append(os.getcwd(), {"script": "generate_tasks.py", "argv": sys.argv[1:], "rc": 1,
+                                    "error": f"{type(e).__name__}: {e}", "counts": {}})
+        raise

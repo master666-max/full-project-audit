@@ -253,19 +253,22 @@ CMDS = {"files": cmd_files, "entry": cmd_entry, "env": cmd_env, "tools": cmd_too
 
 
 def main():
-    ap = argparse.ArgumentParser(description="枚举器八子命令（前置解剖机械臂）")
+    ap = argparse.ArgumentParser(allow_abbrev=False, description="枚举器八子命令（前置解剖机械臂）")
     ap.add_argument("cmd", choices=sorted(CMDS.keys()))
     ap.add_argument("--root", default=".")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
     root = os.path.abspath(args.root)
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
-    gen = CMDS[args.cmd](args, root)
-    n = 0
-    with open(args.out, "w", encoding="utf-8") as f:
-        for row in gen:
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
-            n += 1
+    import runlog
+    with runlog.span(__file__, sys.argv[1:], os.path.dirname(os.path.abspath(args.out))) as ev:
+        gen = CMDS[args.cmd](args, root)
+        n = 0
+        with open(args.out, "w", encoding="utf-8") as f:
+            for row in gen:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+                n += 1
+        ev["counts"] = {"rows": n, "root": root}
     print(f"{args.cmd}: wrote {n} rows -> {args.out}")
     return 0
 
