@@ -250,8 +250,12 @@ def main():
             with open(na_path, encoding="utf-8") as f:
                 na_layers = {p["layer"]: p["reason"]
                              for p in json.load(f).get("predictions", [])}
+        run_claims = [{"metric": "tasks_total", "value": len(tasks)},
+                      {"metric": "files_total", "value": len(files)},
+                      {"metric": "pools", "value": len(pool_tasks)},
+                      {"metric": "active_checkpoints", "value": len(active)}]
         for t in tasks:
-            write_report_skeleton(rep_dir, t, cps, na_layers)
+            write_report_skeleton(rep_dir, t, cps, na_layers, run_claims)
 
     print(f"tasks={len(tasks)} pools={len(pool_tasks)}{'(截断!)' if pools_trunc else ''} drills={drills} "
           f"src={src_count} active={len(active)} uncovered={len(uncovered)} modules={modules}")
@@ -327,7 +331,7 @@ def build_drill_tasks(active, enum, files, churn, max_targets, churn_topk, max_d
     return out, drills
 
 
-def write_report_skeleton(rep_dir, task, cps, na_layers=frozenset()):
+def write_report_skeleton(rep_dir, task, cps, na_layers=frozenset(), claims=()):
     """D-A 报告骨架 v2：**自足**——probe 文本/验法/默认严重度/语义锚点/G10 预判全部嵌入，
     审查员每任务只开这一件（v1 曾只写 id，逼三文件交叉引用——注意力扫描 P1#1）。
     判定词表由代码给死（四选一删未用项）；同名 sidecar stub 同步落盘。"""
@@ -365,7 +369,10 @@ def write_report_skeleton(rep_dir, task, cps, na_layers=frozenset()):
         f.write("".join(parts))
     side = {"task_id": tid, "layer": task["layer"], "checkpoint_ids": cids,
             "verdict": "", "severity": "", "citations": [],
-            "pool_result": ""}
+            "pool_result": "",
+            # D-④ 主张级冲突检测：运行级事实在生成时已知，预填进每份 stub——
+            # claims-check 拿它们对审计期重算的 facts，报告数字漂移即 FAIL
+            "claims": list(claims)}
     with open(os.path.join(rep_dir, f"{tid}.json"), "w", encoding="utf-8", newline="\n") as f:
         json.dump(side, f, ensure_ascii=False, indent=1)
 

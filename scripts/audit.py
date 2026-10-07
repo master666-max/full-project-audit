@@ -543,6 +543,54 @@ def cmd_final_check(args):
     return 0 if ok else 1
 
 
+# ---------- D-④ 主张级冲突检测 ----------
+def build_facts(tasks_path, enum_dir, data_path, reports_dir=None):
+    """机械真值提取器：主张只跟这里的数字对账。"""
+    facts = {"tasks_total": sum(1 for l in open(tasks_path, encoding="utf-8") if l.strip())}
+    files_path = os.path.join(enum_dir, "files.jsonl")
+    facts["files_total"] = sum(1 for l in open(files_path, encoding="utf-8") if l.strip())
+    rows = load_jsonl(tasks_path)
+    facts["pools"] = sum(1 for t in rows if t.get("task_id", "").endswith("POOL"))
+    with open(data_path, encoding="utf-8") as f:
+        doc = json.load(f)
+    facts["active_checkpoints"] = sum(1 for c in doc["checkpoints"] if c.get("status") == "active")
+    facts["template_version"] = doc.get("template_version", "")
+    if reports_dir and os.path.isdir(reports_dir):
+        facts["reports_total"] = len(_glob.glob(os.path.join(reports_dir, "*.md")))
+    return facts
+
+
+def claims_check(reports_dir, facts):
+    """对 batch-reports/*.json sidecar 的 claims 逐条对账：
+    同名指标必须相等（数字漂移=FAIL）；facts 没有的指标 record-only；无 claims 的 sidecar 跳过。"""
+    mismatches, record_only, checked = [], [], 0
+    for p in sorted(_glob.glob(os.path.join(reports_dir, "*.json"))):
+        try:
+            with open(p, encoding="utf-8") as f:
+                sc = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+        for c in sc.get("claims", []):
+            metric, val = c.get("metric"), c.get("value")
+            if metric in facts:
+                checked += 1
+                if facts[metric] != val:
+                    mismatches.append(f"{os.path.basename(p)}:{metric} 报告 {val} ≠ 事实 {facts[metric]}")
+            else:
+                record_only.append(f"{os.path.basename(p)}:{metric}={val}")
+    d = {"facts": facts, "claims_checked": checked, "mismatches": mismatches[:20],
+         "record_only_n": len(record_only)}
+    return d, (len(mismatches) == 0)
+
+
+def cmd_claims_check(args):
+    facts = build_facts(args.tasks, args.enum_dir, args.data, args.reports)
+    d, ok = claims_check(args.reports, facts)
+    print(json.dumps(d, ensure_ascii=False, indent=1))
+    print("CLAIMS-CHECK", "PASS" if ok else "FAIL（报告数字与机械事实不符）")
+    return 0 if ok else 1
+
+
 def self_test():
     with tempfile.TemporaryDirectory() as td:
         files = ["a.py", "b.py", "c.py"]
@@ -642,6 +690,30 @@ def selftest_all():
                                      {"file": "real.py", "line": 6, "excerpt": "凭空捏造的摘录"}]}, f)
         fsc, _ = fields_check(rep_sc, repo=srcd)
         results.append(("摘录真实性校验（真过假抓）", fsc["broken_citations"] == 1))
+        # claims-check：数字主张对机械事实（错值 FAIL，真值 PASS）
+        ck_rep = os.path.join(td, "rep_ck"); os.makedirs(ck_rep)
+        ck_enum = os.path.join(td, "ck_enum"); os.makedirs(ck_enum)
+        open(os.path.join(ck_enum, "files.jsonl"), "w", encoding="utf-8").write(
+            '{"kind":"file","key":"a.py"}\n')
+        ck_pool = os.path.join(td, "ck_pool.json")
+        with open(ck_pool, "w", encoding="utf-8") as f:
+            json.dump({"checkpoints": [{"id": "Z1", "status": "active"}]}, f)
+        ck_tasks = os.path.join(td, "ck_tasks.jsonl")
+        with open(ck_tasks, "w", encoding="utf-8") as f:
+            f.write(json.dumps({"task_id": "T1-SEM", "checkpoint_ids": ["Z1"]}) + "\n")
+        with open(os.path.join(ck_rep, "T1-SEM.json"), "w", encoding="utf-8") as f:
+            json.dump({"verdict": "命中", "severity": "low",
+                       "claims": [{"metric": "tasks_total", "value": 999}]}, f)
+        facts = build_facts(ck_tasks, ck_enum, ck_pool)
+        _, okc_bad = claims_check(ck_rep, facts)
+        with open(os.path.join(ck_rep, "T1-SEM.json"), "w", encoding="utf-8") as f:
+            json.dump({"verdict": "命中", "severity": "low",
+                       "claims": [{"metric": "tasks_total", "value": 1},
+                                  {"metric": "自定义指标", "value": 42}]}, f)
+        d_ck, okc_good = claims_check(ck_rep, facts)
+        results.append(("claims 错值→FAIL", (not okc_bad) and facts["tasks_total"] == 1))
+        results.append(("claims 真值→PASS＋未知指标 record-only",
+                        okc_good and d_ck["record_only_n"] == 1))
         # final-check：全节+快照在载→PASS；禁用措辞→FAIL
         fr = os.path.join(td, "final.md")
         with open(fr, "w", encoding="utf-8") as f:
@@ -698,6 +770,12 @@ def main():
     p.add_argument("--report", required=True)
     p.add_argument("--tasks", required=True)
     p.add_argument("--reports", default=None, help="batch-reports 目录：判定分布交叉对账")
+    p = sub.add_parser("claims-check", allow_abbrev=False,
+                       help="主张级冲突检测（D-④）：sidecar claims 对机械事实逐条对账")
+    p.add_argument("--reports", required=True)
+    p.add_argument("--tasks", required=True)
+    p.add_argument("--enum-dir", required=True)
+    p.add_argument("--data", required=True)
     args = ap.parse_args()
     global _LOGDIR
     _LOGDIR = os.path.dirname(os.path.abspath(getattr(args, "tasks", "") or ".")) or os.getcwd()
@@ -710,7 +788,7 @@ def main():
     fn = {"reconcile": cmd_reconcile, "coverage": cmd_coverage, "pool-lint": cmd_pool_lint,
           "boundary": cmd_boundary, "drift": cmd_drift, "fields": cmd_fields,
           "sample": cmd_sample, "rerun": cmd_rerun, "metrics": cmd_metrics,
-          "final-check": cmd_final_check}.get(args.cmd)
+          "final-check": cmd_final_check, "claims-check": cmd_claims_check}.get(args.cmd)
     if fn is None:
         ap.print_help()
         return 2
